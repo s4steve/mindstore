@@ -57,5 +57,19 @@ services:
       ingestion:
         condition: service_started
 
+  webapp:
+    build:
+      context: ./webapp
+      dockerfile: Dockerfile
+    platform: linux/arm64
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      API_KEY: ${API_KEY}
+    depends_on:
+      ingestion:
+        condition: service_started
+
 volumes:
   postgres_data:

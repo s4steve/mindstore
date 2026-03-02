@@ -78,6 +78,11 @@ async def stats():
     return StatsResponse(**data)
 
 
+@app.get("/recent", dependencies=[Depends(get_api_key)])
+async def recent(limit: int = 10, content_type: str | None = None):
+    return await db_module.get_recent(get_pool(), limit=limit, content_type=content_type)
+
+
 @app.put("/thoughts/{id}", response_model=UpdateResponse, dependencies=[Depends(get_api_key)])
 async def update_thought(id: str, request: UpdateRequest):
     re_embedded = False

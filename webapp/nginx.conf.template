@@ -1,0 +1,36 @@
+server {
+    listen 3000;
+    server_name _;
+
+    # Local network only — RFC 1918 ranges + loopback
+    allow 127.0.0.1;
+    allow 10.0.0.0/8;
+    allow 172.16.0.0/12;
+    allow 192.168.0.0/16;
+    deny all;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Proxy /api/ingest → ingestion service
+    location = /api/ingest {
+        proxy_pass http://ingestion:8000/ingest;
+        proxy_set_header Host $host;
+        proxy_set_header X-API-Key ${API_KEY};
+        proxy_set_header Content-Type application/json;
+        proxy_pass_request_headers on;
+    }
+
+    # Proxy /api/recent → ingestion service
+    location = /api/recent {
+        proxy_pass http://ingestion:8000/recent;
+        proxy_set_header Host $host;
+        proxy_set_header X-API-Key ${API_KEY};
+        proxy_pass_request_headers on;
+    }
+
+    # Serve the frontend
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

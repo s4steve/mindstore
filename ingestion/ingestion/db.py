@@ -99,6 +99,29 @@ async def update_thought(
     return result == "UPDATE 1"
 
 
+async def get_recent(
+    pool: asyncpg.Pool,
+    limit: int = 10,
+    content_type: str | None = None,
+) -> list[dict]:
+    rows = await pool.fetch(
+        """
+        SELECT id::text, content, title, tags, content_type, source, created_at
+        FROM thoughts
+        WHERE ($1::text IS NULL OR content_type = $1)
+          AND parent_id IS NULL
+        ORDER BY created_at DESC
+        LIMIT $2
+        """,
+        content_type,
+        limit,
+    )
+    return [
+        {**dict(r), "created_at": r["created_at"].isoformat()}
+        for r in rows
+    ]
+
+
 async def get_stats(pool: asyncpg.Pool) -> dict:
     rows = await pool.fetch(
         "SELECT content_type, COUNT(*) AS cnt FROM thoughts GROUP BY content_type"

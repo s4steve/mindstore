@@ -1,0 +1,61 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    platform: linux/arm64
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mindstore}
+      POSTGRES_USER: ${POSTGRES_USER:-mindstore}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mindstore}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: ingestion/Dockerfile
+    platform: linux/arm64
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      API_KEY: ${API_KEY}
+      INGESTION_HOST: ${INGESTION_HOST:-0.0.0.0}
+      INGESTION_PORT: ${INGESTION_PORT:-8000}
+      EMBEDDER_BACKEND: ${EMBEDDER_BACKEND:-local}
+      EMBEDDER_MODEL: ${EMBEDDER_MODEL:-all-MiniLM-L6-v2}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  mcp_server:
+    build:
+      context: .
+      dockerfile: mcp_server/Dockerfile
+    platform: linux/arm64
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      INGESTION_URL: http://ingestion:8000
+      API_KEY: ${API_KEY}
+      MCP_HOST: ${MCP_HOST:-0.0.0.0}
+      MCP_PORT: ${MCP_PORT:-8001}
+    depends_on:
+      db:
+        condition: service_healthy
+      ingestion:
+        condition: service_started
+
+volumes:
+  postgres_data:

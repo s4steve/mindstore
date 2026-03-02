@@ -72,6 +72,65 @@ async def get_by_tag(
     return [dict(r) for r in rows]
 
 
+async def get_by_date_range(
+    pool: asyncpg.Pool,
+    start: str,
+    end: str,
+    content_type: str | None = None,
+    limit: int = 100,
+) -> list[dict]:
+    rows = await pool.fetch(
+        """
+        SELECT id::text, content, title, tags, content_type, source, created_at
+        FROM thoughts
+        WHERE created_at >= $1::timestamptz
+          AND created_at <= $2::timestamptz
+          AND ($3::text IS NULL OR content_type = $3)
+          AND parent_id IS NULL
+        ORDER BY created_at DESC
+        LIMIT $4
+        """,
+        start,
+        end,
+        content_type,
+        limit,
+    )
+    return [dict(r) for r in rows]
+
+
+async def weekly_review(pool: asyncpg.Pool, days: int = 7) -> dict:
+    rows = await pool.fetch(
+        """
+        SELECT id::text, content, title, tags, content_type, created_at
+        FROM thoughts
+        WHERE created_at >= NOW() - ($1 * INTERVAL '1 day')
+          AND parent_id IS NULL
+        ORDER BY created_at DESC
+        """,
+        days,
+    )
+    entries = [dict(r) for r in rows]
+
+    by_type: dict[str, int] = {}
+    tag_freq: dict[str, int] = {}
+    for entry in entries:
+        by_type[entry["content_type"]] = by_type.get(entry["content_type"], 0) + 1
+        for tag in (entry["tags"] or []):
+            tag_freq[tag] = tag_freq.get(tag, 0) + 1
+        if entry.get("created_at"):
+            entry["created_at"] = entry["created_at"].isoformat()
+
+    top_tags = sorted(tag_freq.items(), key=lambda x: x[1], reverse=True)[:10]
+
+    return {
+        "period_days": days,
+        "total": len(entries),
+        "by_type": by_type,
+        "top_tags": [{"tag": t, "count": c} for t, c in top_tags],
+        "entries": entries,
+    }
+
+
 async def get_stats(pool: asyncpg.Pool) -> dict:
     type_rows = await pool.fetch(
         "SELECT content_type, COUNT(*) AS cnt FROM thoughts GROUP BY content_type"

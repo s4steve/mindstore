@@ -9,7 +9,13 @@ from fastapi.security.api_key import APIKeyHeader
 from embedder import SentenceTransformerEmbedder, EmbedderBase
 from . import db as db_module
 from . import pipeline
-from .models import IngestRequest, IngestResponse, HealthResponse, StatsResponse
+from .models import (
+    IngestRequest, IngestResponse,
+    UpdateRequest, UpdateResponse,
+    DeleteResponse,
+    BulkIngestRequest, BulkIngestResponse,
+    HealthResponse, StatsResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -70,3 +76,45 @@ async def health():
 async def stats():
     data = await db_module.get_stats(get_pool())
     return StatsResponse(**data)
+
+
+@app.put("/thoughts/{id}", response_model=UpdateResponse, dependencies=[Depends(get_api_key)])
+async def update_thought(id: str, request: UpdateRequest):
+    re_embedded = False
+    embedding = None
+    if request.content is not None:
+        embedding = get_embedder().embed(request.content)
+        re_embedded = True
+    updated = await db_module.update_thought(
+        pool=get_pool(),
+        id=id,
+        content=request.content,
+        embedding=embedding,
+        title=request.title,
+        tags=request.tags,
+        metadata=request.metadata,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Thought not found")
+    return UpdateResponse(id=id, re_embedded=re_embedded)
+
+
+@app.delete("/thoughts/{id}", response_model=DeleteResponse, dependencies=[Depends(get_api_key)])
+async def delete_thought(id: str):
+    deleted = await db_module.delete_thought(get_pool(), id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Thought not found")
+    return DeleteResponse(id=id, deleted=True)
+
+
+@app.post("/ingest/batch", response_model=BulkIngestResponse, dependencies=[Depends(get_api_key)])
+async def ingest_batch(request: BulkIngestRequest):
+    results = []
+    for entry in request.entries:
+        result = await pipeline.ingest(entry, get_pool(), get_embedder())
+        results.append(result)
+    return BulkIngestResponse(
+        results=results,
+        total_entries=len(results),
+        total_chunks=sum(r.chunks_created for r in results),
+    )

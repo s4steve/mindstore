@@ -44,6 +44,61 @@ async def insert_thought(
     return row["id"]
 
 
+async def delete_thought(pool: asyncpg.Pool, id: str) -> bool:
+    """Delete a thought and all its chunks (CASCADE handles children)."""
+    result = await pool.execute(
+        "DELETE FROM thoughts WHERE id = $1::uuid AND parent_id IS NULL",
+        id,
+    )
+    return result == "DELETE 1"
+
+
+async def update_thought(
+    pool: asyncpg.Pool,
+    id: str,
+    content: str | None = None,
+    embedding: list[float] | None = None,
+    title: str | None = None,
+    tags: list[str] | None = None,
+    metadata: dict | None = None,
+) -> bool:
+    sets: list[str] = []
+    values: list = []
+    idx = 1
+
+    if content is not None:
+        sets.append(f"content = ${idx}")
+        values.append(content)
+        idx += 1
+    if embedding is not None:
+        vector_str = "[" + ",".join(str(v) for v in embedding) + "]"
+        sets.append(f"embedding = ${idx}::vector")
+        values.append(vector_str)
+        idx += 1
+    if title is not None:
+        sets.append(f"title = ${idx}")
+        values.append(title)
+        idx += 1
+    if tags is not None:
+        sets.append(f"tags = ${idx}")
+        values.append(tags)
+        idx += 1
+    if metadata is not None:
+        sets.append(f"metadata = ${idx}")
+        values.append(metadata)
+        idx += 1
+
+    if not sets:
+        return False
+
+    values.append(id)
+    result = await pool.execute(
+        f"UPDATE thoughts SET {', '.join(sets)} WHERE id = ${idx}::uuid",
+        *values,
+    )
+    return result == "UPDATE 1"
+
+
 async def get_stats(pool: asyncpg.Pool) -> dict:
     rows = await pool.fetch(
         "SELECT content_type, COUNT(*) AS cnt FROM thoughts GROUP BY content_type"

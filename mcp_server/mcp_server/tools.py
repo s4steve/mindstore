@@ -81,6 +81,51 @@ def register_tools(mcp: FastMCP, ingestion_url: str, api_key: str, embedder, poo
         """Get summary statistics about your knowledge store."""
         return await search_module.get_stats(_pool)
 
+    @mcp.tool()
+    async def get_by_date_range(
+        start: str,
+        end: str,
+        content_type: str | None = None,
+        limit: int = 100,
+    ) -> list[dict]:
+        """Get entries created between two ISO timestamps (e.g. '2026-01-01T00:00:00Z')."""
+        results = await search_module.get_by_date_range(_pool, start, end, content_type, limit)
+        for r in results:
+            if r.get("created_at"):
+                r["created_at"] = r["created_at"].isoformat()
+        return results
+
+    @mcp.tool()
+    async def weekly_review(days: int = 7) -> dict:
+        """Synthesize recent entries to surface patterns and forgotten threads.
+        Returns all entries from the last N days grouped by type with tag frequency."""
+        return await search_module.weekly_review(_pool, days)
+
+    @mcp.tool()
+    async def delete_thought(id: str) -> dict:
+        """Permanently delete an entry and all its chunks by ID."""
+        return await _call_ingestion("DELETE", f"/thoughts/{id}")
+
+    @mcp.tool()
+    async def update_thought(
+        id: str,
+        content: str | None = None,
+        title: str | None = None,
+        tags: list[str] | None = None,
+        metadata: dict | None = None,
+    ) -> dict:
+        """Update an existing entry. If content changes it will be re-embedded."""
+        payload = {}
+        if content is not None:
+            payload["content"] = content
+        if title is not None:
+            payload["title"] = title
+        if tags is not None:
+            payload["tags"] = tags
+        if metadata is not None:
+            payload["metadata"] = metadata
+        return await _call_ingestion("PUT", f"/thoughts/{id}", payload)
+
 
 async def _call_ingest(
     content: str,
@@ -98,10 +143,14 @@ async def _call_ingest(
     }
     if title:
         payload["title"] = title
+    return await _call_ingestion("POST", "/ingest", payload)
 
+
+async def _call_ingestion(method: str, path: str, payload: dict | None = None) -> dict:
     async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{_ingestion_url}/ingest",
+        response = await client.request(
+            method=method,
+            url=f"{_ingestion_url}{path}",
             json=payload,
             headers={"X-API-Key": _api_key},
             timeout=30.0,

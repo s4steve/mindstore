@@ -67,6 +67,8 @@ services:
       - "3000:3000"
     environment:
       API_KEY: ${API_KEY}
+      WEB_USERNAME: ${WEB_USERNAME}
+      WEB_PASSWORD: ${WEB_PASSWORD}
     depends_on:
       ingestion:
         condition: service_started

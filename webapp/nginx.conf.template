@@ -2,12 +2,8 @@ server {
     listen 3000;
     server_name _;
 
-    # Local network only — RFC 1918 ranges + loopback
-    allow 127.0.0.1;
-    allow 10.0.0.0/8;
-    allow 172.16.0.0/12;
-    allow 192.168.0.0/16;
-    deny all;
+    auth_basic "Mindstore";
+    auth_basic_user_file /etc/nginx/.htpasswd;
 
     root /usr/share/nginx/html;
     index index.html;

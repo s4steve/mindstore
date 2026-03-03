@@ -17,7 +17,7 @@ EMBEDDER_MODEL = os.environ.get("EMBEDDER_MODEL", "all-MiniLM-L6-v2")
 MCP_HOST = os.environ.get("MCP_HOST", "0.0.0.0")
 MCP_PORT = int(os.environ.get("MCP_PORT", "8001"))
 
-mcp = FastMCP("mindstore")
+mcp = FastMCP("mindstore", host=MCP_HOST, port=MCP_PORT)
 
 
 async def startup() -> tuple:
@@ -35,7 +35,7 @@ def main():
     logging.basicConfig(level=logging.INFO)
     loop = asyncio.get_event_loop()
     loop.run_until_complete(startup())
-    mcp.run(transport="sse", host=MCP_HOST, port=MCP_PORT)
+    mcp.run(transport="sse")
 
 
 if __name__ == "__main__":

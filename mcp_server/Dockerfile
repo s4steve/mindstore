@@ -1,6 +1,9 @@
 FROM python:3.11-slim
 WORKDIR /app
 
+# Upgrade pip and setuptools first (setuptools.backends requires >=68)
+RUN pip install --no-cache-dir --upgrade pip setuptools
+
 # Install torch CPU-only (ARM64 compatible)
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir sentence-transformers

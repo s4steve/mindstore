@@ -1,3 +1,4 @@
+import json
 import asyncpg
 
 
@@ -37,7 +38,7 @@ async def insert_thought(
         content_type,
         title,
         tags,
-        metadata,
+        json.dumps(metadata),
         chunk_index,
         parent_id,
     )
@@ -85,7 +86,7 @@ async def update_thought(
         idx += 1
     if metadata is not None:
         sets.append(f"metadata = ${idx}")
-        values.append(metadata)
+        values.append(json.dumps(metadata))
         idx += 1
 
     if not sets:

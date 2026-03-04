@@ -1,4 +1,5 @@
 import asyncpg
+from datetime import datetime, timezone
 
 
 async def semantic_search(
@@ -79,19 +80,21 @@ async def get_by_date_range(
     content_type: str | None = None,
     limit: int = 100,
 ) -> list[dict]:
+    start_dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
+    end_dt = datetime.fromisoformat(end.replace("Z", "+00:00"))
     rows = await pool.fetch(
         """
         SELECT id::text, content, title, tags, content_type, source, created_at
         FROM thoughts
-        WHERE created_at >= $1::timestamptz
-          AND created_at <= $2::timestamptz
+        WHERE created_at >= $1
+          AND created_at <= $2
           AND ($3::text IS NULL OR content_type = $3)
           AND parent_id IS NULL
         ORDER BY created_at DESC
         LIMIT $4
         """,
-        start,
-        end,
+        start_dt,
+        end_dt,
         content_type,
         limit,
     )

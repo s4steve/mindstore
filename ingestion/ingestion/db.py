@@ -1,6 +1,5 @@
 import json
 import asyncpg
-import json
 
 
 async def create_pool(database_url: str) -> asyncpg.Pool:

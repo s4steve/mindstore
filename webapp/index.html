@@ -390,6 +390,91 @@
       flex-shrink: 0;
     }
 
+    /* ── Search ────────────────────────────────────── */
+    .search-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    #searchInput {
+      flex: 1;
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--border);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 300;
+      padding: 10px 16px;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+      caret-color: var(--accent);
+    }
+    #searchInput::placeholder {
+      color: var(--text-dimmer);
+      font-style: italic;
+    }
+    #searchInput:focus {
+      background: var(--bg-2);
+      border-color: var(--border);
+      border-left-color: var(--accent);
+    }
+
+    #searchBtn {
+      background: var(--bg-2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      font-family: var(--font);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: color 0.12s, border-color 0.12s;
+    }
+    #searchBtn:hover:not(:disabled) { color: var(--text); border-color: var(--accent-dim); }
+    #searchBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .s-item {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 16px;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--border-2);
+      align-items: start;
+      animation: itemIn 0.2s ease both;
+    }
+
+    .s-sim {
+      font-size: 10px;
+      letter-spacing: 0.02em;
+      color: var(--accent);
+      text-align: right;
+      padding-top: 2px;
+    }
+
+    .s-meta {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      margin-bottom: 3px;
+    }
+
+    .s-type {
+      font-size: 9px;
+      color: var(--text-dimmer);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .s-empty {
+      font-size: 11px;
+      color: var(--text-dimmer);
+      font-style: italic;
+      padding: 14px 0;
+    }
+
     /* ── Scrollbar ─────────────────────────────────── */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
@@ -439,6 +524,21 @@
     <span class="hint"><kbd>⌘</kbd> / <kbd>Ctrl</kbd> + <kbd>↵</kbd> to capture</span>
     <button id="captureBtn">Capture</button>
   </div>
+
+  <div class="divider"><span>search</span></div>
+
+  <div class="search-row">
+    <input
+      id="searchInput"
+      type="text"
+      placeholder="search your thoughts…"
+      autocomplete="off"
+      spellcheck="false"
+    >
+    <button id="searchBtn">Search</button>
+  </div>
+
+  <div id="searchResults"></div>
 
   <div class="divider"><span>recent</span></div>
 
@@ -644,6 +744,70 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
   }
+
+  // ── Search ─────────────────────────────────────────────────────────
+  const searchInputEl  = document.getElementById('searchInput');
+  const searchBtnEl    = document.getElementById('searchBtn');
+  const searchResults  = document.getElementById('searchResults');
+  let searching = false;
+
+  async function doSearch() {
+    const q = searchInputEl.value.trim();
+    if (!q || searching) return;
+
+    searching = true;
+    searchBtnEl.disabled = true;
+    searchBtnEl.textContent = '…';
+    searchResults.innerHTML = '<div class="s-empty">searching…</div>';
+
+    try {
+      const params = new URLSearchParams({ q, limit: 10 });
+      const res = await fetch(`/api/search?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (!data.length) {
+        searchResults.innerHTML = '<div class="s-empty">no results found</div>';
+        return;
+      }
+
+      searchResults.innerHTML = '';
+      data.forEach((item, i) => {
+        const el = document.createElement('div');
+        el.className = 's-item';
+        el.style.animationDelay = `${i * 30}ms`;
+        const simPct = Math.round(item.similarity * 100);
+        const tagsHtml = (item.tags || [])
+          .map(t => `<span class="r-tag">${esc(t)}</span>`)
+          .join('');
+        el.innerHTML = `
+          <div class="s-sim">${simPct}%</div>
+          <div>
+            <div class="s-meta">
+              <span class="s-type">${esc(item.content_type)}</span>
+              <span class="r-time">${relTime(item.created_at)}</span>
+            </div>
+            <div class="r-content">${esc(item.content)}</div>
+            ${tagsHtml ? `<div class="r-tags">${tagsHtml}</div>` : ''}
+          </div>`;
+        searchResults.appendChild(el);
+      });
+    } catch (err) {
+      searchResults.innerHTML = `<div class="s-empty">error: ${esc(err.message)}</div>`;
+    } finally {
+      searching = false;
+      searchBtnEl.disabled = false;
+      searchBtnEl.textContent = 'Search';
+    }
+  }
+
+  searchBtnEl.addEventListener('click', doSearch);
+  searchInputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+  });
+  searchInputEl.addEventListener('input', () => {
+    if (!searchInputEl.value.trim()) searchResults.innerHTML = '';
+  });
 
   // ── Init ───────────────────────────────────────────────────────────
   loadRecent();

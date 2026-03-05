@@ -25,6 +25,14 @@ server {
         proxy_pass_request_headers on;
     }
 
+    # Proxy /api/search → ingestion service
+    location = /api/search {
+        proxy_pass http://ingestion:8000/search;
+        proxy_set_header Host $host;
+        proxy_set_header X-API-Key ${API_KEY};
+        proxy_pass_request_headers on;
+    }
+
     # Serve the frontend
     location / {
         try_files $uri $uri/ /index.html;

@@ -1,5 +1,6 @@
 import json
 import asyncpg
+import json
 
 
 async def create_pool(database_url: str) -> asyncpg.Pool:
@@ -119,6 +120,40 @@ async def get_recent(
     )
     return [
         {**dict(r), "created_at": r["created_at"].isoformat()}
+        for r in rows
+    ]
+
+
+async def semantic_search(
+    pool: asyncpg.Pool,
+    embedding: list[float],
+    limit: int = 10,
+    content_type: str | None = None,
+) -> list[dict]:
+    vector_str = "[" + ",".join(str(v) for v in embedding) + "]"
+    rows = await pool.fetch(
+        """
+        SELECT
+            id::text,
+            content,
+            title,
+            tags,
+            content_type,
+            source,
+            created_at,
+            1 - (embedding <=> $1::vector) AS similarity
+        FROM thoughts
+        WHERE ($2::text IS NULL OR content_type = $2)
+          AND parent_id IS NULL
+        ORDER BY embedding <=> $1::vector
+        LIMIT $3
+        """,
+        vector_str,
+        content_type,
+        limit,
+    )
+    return [
+        {**dict(r), "created_at": r["created_at"].isoformat(), "similarity": float(r["similarity"])}
         for r in rows
     ]
 

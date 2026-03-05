@@ -83,6 +83,12 @@ async def recent(limit: int = 10, content_type: str | None = None):
     return await db_module.get_recent(get_pool(), limit=limit, content_type=content_type)
 
 
+@app.get("/search", dependencies=[Depends(get_api_key)])
+async def search_endpoint(q: str, limit: int = 10, content_type: str | None = None):
+    embedding = get_embedder().embed(q)
+    return await db_module.semantic_search(get_pool(), embedding=embedding, limit=limit, content_type=content_type)
+
+
 @app.put("/thoughts/{id}", response_model=UpdateResponse, dependencies=[Depends(get_api_key)])
 async def update_thought(id: str, request: UpdateRequest):
     re_embedded = False

@@ -1,6 +1,6 @@
 import os
 import logging
-import asyncio
+from contextlib import asynccontextmanager
 
 from mcp.server.fastmcp import FastMCP
 
@@ -17,10 +17,9 @@ EMBEDDER_MODEL = os.environ.get("EMBEDDER_MODEL", "all-MiniLM-L6-v2")
 MCP_HOST = os.environ.get("MCP_HOST", "0.0.0.0")
 MCP_PORT = int(os.environ.get("MCP_PORT", "8001"))
 
-mcp = FastMCP("mindstore", host=MCP_HOST, port=MCP_PORT)
 
-
-async def startup() -> tuple:
+@asynccontextmanager
+async def lifespan(app):
     logger.info("Loading embedder model...")
     embedder = SentenceTransformerEmbedder(EMBEDDER_MODEL)
     logger.info("Connecting to database...")
@@ -28,13 +27,15 @@ async def startup() -> tuple:
     logger.info("Registering MCP tools...")
     register_tools(mcp, INGESTION_URL, API_KEY, embedder, pool)
     logger.info("MCP server ready.")
-    return embedder, pool
+    yield
+    await pool.close()
+
+
+mcp = FastMCP("mindstore", host=MCP_HOST, port=MCP_PORT, lifespan=lifespan)
 
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(startup())
     mcp.run(transport="sse")
 
 

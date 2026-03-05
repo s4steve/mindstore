@@ -1,8 +1,13 @@
 # Mindstore
 
-A personal knowledge store that captures thoughts, ideas, notes, and events, embeds them locally using sentence-transformers, stores them in PostgreSQL with pgvector, and exposes them via an MCP server.
+A personal knowledge store that captures thoughts, ideas, notes, and events, embeds them locally using sentence-transformers, stores them in PostgreSQL with pgvector, and exposes them via an MCP server and a web UI.
 
-Runs entirely in Docker on a Raspberry Pi 5 (ARM64) and is accessed remotely via Tailscale.
+Features include:
+- **Capture** thoughts, notes, events, and articles via the web UI or API
+- **Semantic search** across your knowledge store using vector similarity (pgvector)
+- **MCP integration** for Claude Desktop and Claude Code
+
+Runs entirely in Docker on any `linux/amd64` or `linux/arm64` host (e.g. a Raspberry Pi 5) and is accessed remotely via Tailscale.
 
 ---
 
@@ -11,8 +16,9 @@ Runs entirely in Docker on a Raspberry Pi 5 (ARM64) and is accessed remotely via
 | Service | Port | Description |
 |---|---|---|
 | `db` | 5432 | PostgreSQL 16 + pgvector |
-| `ingestion` | 8000 | FastAPI REST ingestion service |
+| `ingestion` | 8000 | FastAPI REST ingestion and search service |
 | `mcp_server` | 8001 | MCP server (SSE transport) |
+| `webapp` | 3000 | Web UI (capture + semantic search) |
 
 The ingestion service embeds content locally using `all-MiniLM-L6-v2` (384 dimensions) and stores it with pgvector for cosine similarity search.
 
@@ -83,15 +89,43 @@ Response:
 
 Returns service status. No auth required.
 
+### `GET /search?q=...&limit=10&content_type=...`
+
+Semantic vector search. Embeds the query and returns results ranked by cosine similarity.
+
+```json
+[
+  {
+    "id": "uuid",
+    "content": "string",
+    "title": "string or null",
+    "tags": ["list"],
+    "content_type": "thought",
+    "created_at": "iso8601",
+    "similarity": 0.87
+  }
+]
+```
+
 ### `GET /stats`
 
 Returns total count, breakdown by type, and most recent entry timestamp.
 
 ---
 
+## Web UI
+
+The web UI is served on port 3000 and requires HTTP basic auth (`WEB_USERNAME` / `WEB_PASSWORD`).
+
+- **Capture** — type a thought and press `Ctrl+Enter` (or `⌘+Enter`) to save it instantly
+- **Search** — enter any natural language query to find semantically related entries; results show similarity scores
+- **Recent** — the 5 most recent entries are always visible below the search section
+
+---
+
 ## MCP Tools
 
-The MCP server exposes 7 tools:
+The MCP server exposes 10 tools:
 
 | Tool | Description |
 |---|---|
@@ -101,18 +135,23 @@ The MCP server exposes 7 tools:
 | `search_thoughts` | Semantically search your knowledge store |
 | `get_recent` | Get the most recently added entries |
 | `get_by_tag` | Find entries by tag |
+| `get_by_date_range` | Find entries within a date range |
+| `weekly_review` | Summarise the last N days with tag frequency |
+| `update_thought` | Edit an existing entry (re-embeds if content changes) |
+| `delete_thought` | Remove an entry and all its chunks |
 | `get_stats` | Get summary statistics |
 
 ---
 
 ## Connecting via Tailscale
 
-The two service endpoints are accessible over your Tailscale network:
+The service endpoints are accessible over your Tailscale network:
 
-- **Ingestion REST API:** `http://<pi-tailscale-ip>:8000`
-- **MCP Server (SSE):** `http://<pi-tailscale-ip>:8001/sse`
+- **Web UI:** `http://<tailscale-ip>:3000`
+- **Ingestion REST API:** `http://<tailscale-ip>:8000`
+- **MCP Server (SSE):** `http://<tailscale-ip>:8001/sse`
 
-Find your Pi's Tailscale IP with `tailscale ip -4` on the Pi.
+Find the host's Tailscale IP with `tailscale ip -4`.
 
 ### Claude Desktop (`claude_desktop_config.json`)
 

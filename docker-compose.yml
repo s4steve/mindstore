@@ -1,7 +1,6 @@
 services:
   db:
     image: pgvector/pgvector:pg16
-    platform: linux/arm64
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-mindstore}
@@ -22,7 +21,6 @@ services:
     build:
       context: .
       dockerfile: ingestion/Dockerfile
-    platform: linux/arm64
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -41,7 +39,6 @@ services:
     build:
       context: .
       dockerfile: mcp_server/Dockerfile
-    platform: linux/arm64
     restart: unless-stopped
     ports:
       - "8001:8001"
@@ -61,7 +58,6 @@ services:
     build:
       context: ./webapp
       dockerfile: Dockerfile
-    platform: linux/arm64
     restart: unless-stopped
     ports:
       - "3000:3000"

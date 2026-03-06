@@ -146,6 +146,14 @@
       font-size: 11px;
     }
 
+    #typeLabel {
+      color: var(--accent);
+      transition: color 0.2s;
+    }
+    #typeLabel.is-note {
+      color: var(--green);
+    }
+
     textarea {
       width: 100%;
       min-height: 180px;
@@ -495,7 +503,7 @@
 </header>
 
 <main>
-  <div class="label">capture thought</div>
+  <div class="label">capture <span id="typeLabel">thought</span></div>
 
   <textarea
     id="thought"
@@ -563,6 +571,22 @@
   const toastEl     = document.getElementById('toast');
   const charCountEl = document.getElementById('charCount');
   const footerCount = document.getElementById('footerCount');
+  const typeLabel   = document.getElementById('typeLabel');
+
+  // ── Type detection (mirrors backend chunker logic) ─────────────────
+  function detectType(content) {
+    const paragraphs = content.split('\n\n').filter(p => p.trim().length >= 50);
+    if (paragraphs.length >= 2) return 'note';
+    const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+    if (wordCount > 500) return 'note';
+    return 'thought';
+  }
+
+  function updateTypeLabel(content) {
+    const type = detectType(content);
+    typeLabel.textContent = type;
+    typeLabel.classList.toggle('is-note', type === 'note');
+  }
 
   // ── State ──────────────────────────────────────────────────────────
   const tags = [];
@@ -582,6 +606,7 @@
     const n = thoughtEl.value.length;
     charCountEl.textContent = `${n.toLocaleString()} / 50,000`;
     charCountEl.classList.toggle('warn', n > 45000);
+    updateTypeLabel(thoughtEl.value);
   });
 
   // ── Tags ───────────────────────────────────────────────────────────
@@ -654,19 +679,21 @@
     captureBtn.textContent = '…';
 
     try {
+      const content_type = detectType(content);
       const res = await fetch('/api/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, content_type: 'thought', tags: [...tags] }),
+        body: JSON.stringify({ content, content_type, tags: [...tags] }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || `HTTP ${res.status}`);
       }
       flash();
-      toast('captured →');
+      toast(`captured as ${content_type} →`);
       thoughtEl.value = '';
       charCountEl.textContent = '0 / 50,000';
+      updateTypeLabel('');
       tags.length = 0;
       renderTags();
       tagInputEl.value = '';

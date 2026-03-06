@@ -20,18 +20,22 @@ MCP_PORT = int(os.environ.get("MCP_PORT", "8001"))
 
 @asynccontextmanager
 async def lifespan(app):
+    from . import tools as tools_module
     logger.info("Loading embedder model...")
-    embedder = SentenceTransformerEmbedder(EMBEDDER_MODEL)
+    tools_module._embedder = SentenceTransformerEmbedder(EMBEDDER_MODEL)
     logger.info("Connecting to database...")
-    pool = await db_module.create_pool(DATABASE_URL)
-    logger.info("Registering MCP tools...")
-    register_tools(mcp, INGESTION_URL, API_KEY, embedder, pool)
+    tools_module._pool = await db_module.create_pool(DATABASE_URL)
+    tools_module._ingestion_url = INGESTION_URL
+    tools_module._api_key = API_KEY
     logger.info("MCP server ready.")
     yield
-    await pool.close()
+    await tools_module._pool.close()
 
 
 mcp = FastMCP("mindstore", host=MCP_HOST, port=MCP_PORT, lifespan=lifespan)
+
+# Register tools at module level so they're available before any SSE connection
+register_tools(mcp)
 
 
 def main():

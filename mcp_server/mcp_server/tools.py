@@ -11,12 +11,7 @@ _embedder: SentenceTransformerEmbedder | None = None
 _pool = None
 
 
-def register_tools(mcp: FastMCP, ingestion_url: str, api_key: str, embedder, pool) -> None:
-    global _ingestion_url, _api_key, _embedder, _pool
-    _ingestion_url = ingestion_url
-    _api_key = api_key
-    _embedder = embedder
-    _pool = pool
+def register_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def add_thought(content: str, tags: list[str] = []) -> dict:

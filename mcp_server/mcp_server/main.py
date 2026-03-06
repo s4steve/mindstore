@@ -40,7 +40,7 @@ register_tools(mcp)
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    mcp.run(transport="sse")
+    mcp.run(transport="streamable-http")
 
 
 if __name__ == "__main__":

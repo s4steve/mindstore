@@ -10,18 +10,18 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:         #0b0b0b;
-      --bg-1:       #111111;
-      --bg-2:       #181818;
-      --border:     #242424;
-      --border-2:   #1a1a1a;
-      --text:       #c8c8c8;
-      --text-dim:   #555;
-      --text-dimmer:#2e2e2e;
-      --accent:     #d4a843;
-      --accent-dim: #8a6a22;
-      --green:      #4ade80;
-      --red:        #f87171;
+      --bg:         #f5f4f0;
+      --bg-1:       #ffffff;
+      --bg-2:       #edecea;
+      --border:     #d8d6ce;
+      --border-2:   #e6e4dc;
+      --text:       #1a1918;
+      --text-dim:   #6b6966;
+      --text-dimmer:#b5b2ac;
+      --accent:     #2563eb;
+      --accent-dim: #1d4ed8;
+      --green:      #16a34a;
+      --red:        #dc2626;
       --font:       'JetBrains Mono', monospace;
     }
 
@@ -59,9 +59,9 @@
     #toast {
       position: fixed;
       bottom: 20px; right: 20px;
-      background: var(--bg-2);
+      background: var(--bg-1);
       border: 1px solid var(--border);
-      border-left: 2px solid var(--green);
+      border-left: 3px solid var(--green);
       padding: 9px 14px;
       font-size: 11px;
       color: var(--green);
@@ -404,7 +404,7 @@
     .r-content {
       font-size: 12px;
       font-weight: 300;
-      color: #8a8a8a;
+      color: var(--text-dim);
       line-height: 1.65;
       overflow: hidden;
       display: -webkit-box;

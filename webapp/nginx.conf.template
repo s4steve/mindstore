@@ -33,8 +33,10 @@ server {
         proxy_pass_request_headers on;
     }
 
-    # Serve the frontend
+    # Serve the frontend — no-cache so updates are always picked up
     location / {
         try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
     }
 }

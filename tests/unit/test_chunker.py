@@ -33,18 +33,18 @@ def test_note_paragraph_chunking():
         assert r.total_chunks == 3
 
 
-def test_note_short_paragraphs_fallback():
-    # Paragraphs under 50 chars are filtered; if none pass, return whole content
+def test_note_short_paragraphs_short_content_fallback():
+    # Paragraphs under 50 chars, content under threshold — return whole content
     results = chunk("Short.\n\nAlso short.", "note")
     assert len(results) == 1
     assert results[0].chunk_index == 0
 
 
-def test_article_sliding_window():
-    # Create content with ~600 words
+def test_note_long_no_paragraphs_uses_sliding_window():
+    # No paragraph structure, but content exceeds 500-word threshold
     words = ["word"] * 600
     content = " ".join(words)
-    results = chunk(content, "article")
+    results = chunk(content, "note")
     # With 500-token window and 50 overlap, step=450
     # chunk 0: 0..500, chunk 1: 450..600 (end)
     assert len(results) == 2
@@ -53,10 +53,12 @@ def test_article_sliding_window():
     assert results[0].total_chunks == 2
 
 
-def test_article_single_chunk():
-    content = " ".join(["word"] * 100)
-    results = chunk(content, "article")
-    assert len(results) == 1
+def test_note_long_with_paragraphs_uses_paragraphs():
+    # Long content but with clear paragraph structure — prefer paragraphs
+    paragraphs = ["word " * 60] * 10  # 10 paragraphs, each ~60 words
+    content = "\n\n".join(paragraphs)
+    results = chunk(content, "note")
+    assert len(results) == 10
 
 
 def test_chunk_indices_are_sequential():

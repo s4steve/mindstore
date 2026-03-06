@@ -2,7 +2,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-ContentType = Literal["thought", "note", "event", "article"]
+ContentType = Literal["thought", "note", "event"]
 
 
 class IngestRequest(BaseModel):

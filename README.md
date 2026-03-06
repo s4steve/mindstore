@@ -68,12 +68,12 @@ curl http://localhost:8000/stats -H "X-API-Key: your-api-key"
 
 ### `POST /ingest`
 
-Ingest content. Automatically chunks articles and notes.
+Ingest content. Notes are automatically chunked by paragraph, with a sliding window fallback for long unstructured content.
 
 ```json
 {
   "content": "string (required, max 50,000 chars)",
-  "content_type": "thought | note | event | article",
+  "content_type": "thought | note | event",
   "title": "optional string",
   "tags": ["optional", "list"],
   "metadata": {}

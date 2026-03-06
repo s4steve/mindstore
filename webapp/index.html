@@ -286,7 +286,7 @@
       cursor: pointer;
       transition: background 0.12s, transform 0.08s;
     }
-    #captureBtn:hover:not(:disabled) { background: #e8c060; }
+    #captureBtn:hover:not(:disabled) { background: var(--accent-dim); }
     #captureBtn:active:not(:disabled) { transform: scale(0.97); }
     #captureBtn:disabled {
       background: var(--text-dimmer);
@@ -317,17 +317,19 @@
     }
 
     #uploadBtn {
-      background: none;
-      border: none;
-      color: var(--text-dimmer);
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
       font-family: var(--font);
       font-size: 10px;
-      letter-spacing: 0.06em;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 8px 18px;
       cursor: pointer;
-      padding: 0;
-      transition: color 0.15s;
+      transition: background 0.12s, color 0.12s;
     }
-    #uploadBtn:hover { color: var(--accent); }
+    #uploadBtn:hover { background: var(--accent); color: #fff; }
 
     .file-badge {
       display: inline-flex;
@@ -530,6 +532,101 @@
       padding: 14px 0;
     }
 
+    /* ── Search result clickable ───────────────────── */
+    .s-item {
+      cursor: pointer;
+    }
+    .s-item:hover {
+      background: var(--bg-2);
+      margin: 0 -10px;
+      padding-left: 10px;
+      padding-right: 10px;
+    }
+
+    /* ── Modal ──────────────────────────────────────── */
+    #modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.35);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+    }
+    #modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    #modal {
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      max-width: 660px;
+      width: 100%;
+      max-height: 82vh;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(10px);
+      transition: transform 0.15s;
+    }
+    #modal-overlay.open #modal {
+      transform: translateY(0);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .modal-meta {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      font-size: 10px;
+      color: var(--text-dimmer);
+      letter-spacing: 0.06em;
+    }
+    .modal-type {
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    #modal-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+    }
+    #modal-close:hover { color: var(--red); }
+    .modal-body {
+      padding: 22px 24px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    #modal-content {
+      font-size: 13px;
+      font-weight: 300;
+      line-height: 1.85;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .modal-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-2);
+    }
+
     /* ── Scrollbar ─────────────────────────────────── */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
@@ -540,6 +637,23 @@
 
 <div id="flash"></div>
 <div id="toast"></div>
+
+<div id="modal-overlay">
+  <div id="modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <div class="modal-meta">
+        <span class="modal-type" id="modal-type"></span>
+        <span id="modal-time"></span>
+        <span id="modal-sim"></span>
+      </div>
+      <button id="modal-close" aria-label="close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-content"></div>
+      <div class="modal-tags" id="modal-tags"></div>
+    </div>
+  </div>
+</div>
 
 <header>
   <div class="logo">MIND<em>STORE</em></div>
@@ -913,6 +1027,7 @@
             <div class="r-content">${esc(item.content)}</div>
             ${tagsHtml ? `<div class="r-tags">${tagsHtml}</div>` : ''}
           </div>`;
+        el.addEventListener('click', () => openModal(item, simPct));
         searchResults.appendChild(el);
       });
     } catch (err) {
@@ -930,6 +1045,41 @@
   });
   searchInputEl.addEventListener('input', () => {
     if (!searchInputEl.value.trim()) searchResults.innerHTML = '';
+  });
+
+  // ── Modal ──────────────────────────────────────────────────────────
+  const modalOverlay  = document.getElementById('modal-overlay');
+  const modalType     = document.getElementById('modal-type');
+  const modalTime     = document.getElementById('modal-time');
+  const modalSim      = document.getElementById('modal-sim');
+  const modalContent  = document.getElementById('modal-content');
+  const modalTags     = document.getElementById('modal-tags');
+  const modalClose    = document.getElementById('modal-close');
+
+  function openModal(item, simPct) {
+    modalType.textContent = item.content_type;
+    modalTime.textContent = relTime(item.created_at);
+    modalSim.textContent  = simPct != null ? `${simPct}% match` : '';
+    modalContent.textContent = item.content;
+    modalTags.innerHTML = (item.tags || [])
+      .map(t => `<span class="r-tag">${esc(t)}</span>`).join('');
+    modalTags.style.display = item.tags && item.tags.length ? 'flex' : 'none';
+    modalOverlay.classList.add('open');
+    document.addEventListener('keydown', onModalKey);
+  }
+
+  function closeModal() {
+    modalOverlay.classList.remove('open');
+    document.removeEventListener('keydown', onModalKey);
+  }
+
+  function onModalKey(e) {
+    if (e.key === 'Escape') closeModal();
+  }
+
+  modalClose.addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', e => {
+    if (e.target === modalOverlay) closeModal();
   });
 
   // ── Init ───────────────────────────────────────────────────────────

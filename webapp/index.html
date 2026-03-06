@@ -295,15 +295,62 @@
     }
 
     /* ── Char counter ──────────────────────────────── */
+    .char-counter-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 5px;
+    }
+
     .char-counter {
       font-size: 10px;
       color: var(--text-dimmer);
-      text-align: right;
-      margin-top: 5px;
       letter-spacing: 0.04em;
       transition: color 0.2s;
     }
     .char-counter.warn { color: var(--red); }
+
+    .upload-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #uploadBtn {
+      background: none;
+      border: none;
+      color: var(--text-dimmer);
+      font-family: var(--font);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.15s;
+    }
+    #uploadBtn:hover { color: var(--accent); }
+
+    .file-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      color: var(--green);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      padding: 2px 7px;
+    }
+
+    #clearFile {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    #clearFile:hover { color: var(--red); }
 
     /* ── Divider ───────────────────────────────────── */
     .divider {
@@ -513,7 +560,17 @@
     maxlength="50000"
   ></textarea>
 
-  <div class="char-counter" id="charCount">0 / 50000</div>
+  <div class="char-counter-row">
+    <div class="char-counter" id="charCount">0 / 50,000</div>
+    <div class="upload-area">
+      <span id="fileBadge" class="file-badge" style="display:none">
+        <span id="fileName"></span>
+        <button id="clearFile" title="clear">✕</button>
+      </span>
+      <button id="uploadBtn">↑ upload .txt</button>
+      <input id="fileInput" type="file" accept=".txt,text/plain" style="display:none">
+    </div>
+  </div>
 
   <div class="tags-row">
     <span class="tags-prefix">tags →</span>
@@ -572,6 +629,11 @@
   const charCountEl = document.getElementById('charCount');
   const footerCount = document.getElementById('footerCount');
   const typeLabel   = document.getElementById('typeLabel');
+  const fileInput   = document.getElementById('fileInput');
+  const uploadBtn   = document.getElementById('uploadBtn');
+  const fileBadge   = document.getElementById('fileBadge');
+  const fileNameEl  = document.getElementById('fileName');
+  const clearFileBtn = document.getElementById('clearFile');
 
   // ── Type detection (mirrors backend chunker logic) ─────────────────
   function detectType(content) {
@@ -592,6 +654,7 @@
   const tags = [];
   let busy = false;
   let toastTimer = null;
+  let isFileUpload = false;
 
   // ── Clock ──────────────────────────────────────────────────────────
   const clockEl = document.getElementById('clock');
@@ -666,6 +729,38 @@
     toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2600);
   }
 
+  // ── File upload ────────────────────────────────────────────────────
+  uploadBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      thoughtEl.value = e.target.result;
+      isFileUpload = true;
+      fileNameEl.textContent = file.name;
+      fileBadge.style.display = 'inline-flex';
+      const n = thoughtEl.value.length;
+      charCountEl.textContent = `${n.toLocaleString()} / 50,000`;
+      charCountEl.classList.toggle('warn', n > 45000);
+      typeLabel.textContent = 'note';
+      typeLabel.classList.add('is-note');
+      thoughtEl.focus();
+    };
+    reader.readAsText(file);
+    fileInput.value = '';
+  });
+
+  function clearFile() {
+    isFileUpload = false;
+    fileBadge.style.display = 'none';
+    fileNameEl.textContent = '';
+    updateTypeLabel(thoughtEl.value);
+  }
+
+  clearFileBtn.addEventListener('click', clearFile);
+
   // ── Capture ────────────────────────────────────────────────────────
   async function capture() {
     const content = thoughtEl.value.trim();
@@ -679,7 +774,7 @@
     captureBtn.textContent = '…';
 
     try {
-      const content_type = detectType(content);
+      const content_type = isFileUpload ? 'note' : detectType(content);
       const res = await fetch('/api/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -693,6 +788,7 @@
       toast(`captured as ${content_type} →`);
       thoughtEl.value = '';
       charCountEl.textContent = '0 / 50,000';
+      clearFile();
       updateTypeLabel('');
       tags.length = 0;
       renderTags();

@@ -3,7 +3,7 @@
 A personal knowledge store that captures thoughts, ideas, notes, and events, embeds them locally using sentence-transformers, stores them in PostgreSQL with pgvector, and exposes them via an MCP server and a web UI.
 
 Features include:
-- **Capture** thoughts, notes, events, and articles via the web UI or API
+- **Capture** thoughts, notes, and events via the web UI or API
 - **Semantic search** across your knowledge store using vector similarity (pgvector)
 - **MCP integration** for Claude Desktop and Claude Code
 

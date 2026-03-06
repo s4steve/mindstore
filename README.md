@@ -17,7 +17,7 @@ Runs entirely in Docker on any `linux/amd64` or `linux/arm64` host (e.g. a Raspb
 |---|---|---|
 | `db` | 5432 | PostgreSQL 16 + pgvector |
 | `ingestion` | 8000 | FastAPI REST ingestion and search service |
-| `mcp_server` | 8001 | MCP server (SSE transport) |
+| `mcp_server` | 8001 | MCP server (streamable-http transport) |
 | `webapp` | 3000 | Web UI (capture + semantic search) |
 
 The ingestion service embeds content locally using `all-MiniLM-L6-v2` (384 dimensions) and stores it with pgvector for cosine similarity search.
@@ -149,17 +149,46 @@ The service endpoints are accessible over your Tailscale network:
 
 - **Web UI:** `http://<tailscale-ip>:3000`
 - **Ingestion REST API:** `http://<tailscale-ip>:8000`
-- **MCP Server (SSE):** `http://<tailscale-ip>:8001/sse`
+- **MCP Server:** `http://<tailscale-ip>:8001/mcp`
 
 Find the host's Tailscale IP with `tailscale ip -4`.
 
-### Claude Desktop (`claude_desktop_config.json`)
+---
+
+## Claude Code — Global MCP Setup
+
+Adding mindstore globally makes the tools available in every project without any per-project config.
+
+### Option 1: CLI (recommended)
+
+```bash
+claude mcp add --transport http --scope global \
+  --header "X-API-Key: your-api-key" \
+  mindstore http://<pi-tailscale-ip>:8001/mcp
+```
+
+Verify it was added:
+
+```bash
+claude mcp list
+```
+
+Remove it if needed:
+
+```bash
+claude mcp remove --scope global mindstore
+```
+
+### Option 2: Edit config manually
+
+Add the following to `~/.claude.json` under the `"mcpServers"` key (create the key if it doesn't exist):
 
 ```json
 {
   "mcpServers": {
     "mindstore": {
-      "url": "http://<pi-tailscale-ip>:8001/sse",
+      "type": "http",
+      "url": "http://<pi-tailscale-ip>:8001/mcp",
       "headers": {
         "X-API-Key": "your-api-key"
       }
@@ -168,13 +197,20 @@ Find the host's Tailscale IP with `tailscale ip -4`.
 }
 ```
 
-### Claude Code (`.mcp.json` in project root or `~/.config/claude/mcp.json`)
+After editing the file, restart Claude Code for the tools to appear.
+
+---
+
+## Claude Desktop
+
+Add to `claude_desktop_config.json` (location varies by OS — check Claude Desktop settings):
 
 ```json
 {
   "mcpServers": {
     "mindstore": {
-      "url": "http://<pi-tailscale-ip>:8001/sse",
+      "type": "http",
+      "url": "http://<pi-tailscale-ip>:8001/mcp",
       "headers": {
         "X-API-Key": "your-api-key"
       }
@@ -183,7 +219,7 @@ Find the host's Tailscale IP with `tailscale ip -4`.
 }
 ```
 
-After saving the config, restart Claude Desktop or reload Claude Code for the tools to appear.
+Restart Claude Desktop after saving.
 
 ---
 

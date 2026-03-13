@@ -178,3 +178,353 @@ async def check_connection(pool: asyncpg.Pool) -> bool:
         return True
     except Exception:
         return False
+
+
+# ── Task helpers ──────────────────────────────────────────────────────────────
+
+def _row_to_task(r) -> dict:
+    d = dict(r)
+    d["id"] = str(d["id"])
+    return d
+
+
+async def create_task(pool: asyncpg.Pool, **kwargs) -> dict:
+    row = await pool.fetchrow(
+        """
+        INSERT INTO tasks (title, notes, status, priority, due_date, recurrence_days, category, tags)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id::text, title, notes, status, priority, due_date,
+                  recurrence_days, category, tags, created_at, updated_at
+        """,
+        kwargs["title"], kwargs.get("notes"), kwargs.get("status", "open"),
+        kwargs.get("priority", "medium"), kwargs.get("due_date"),
+        kwargs.get("recurrence_days"), kwargs.get("category", "general"),
+        kwargs.get("tags", []),
+    )
+    return dict(row)
+
+
+async def list_tasks(
+    pool: asyncpg.Pool,
+    status: str | None = None,
+    category: str | None = None,
+    due_soon_days: int | None = None,
+) -> list[dict]:
+    rows = await pool.fetch(
+        """
+        SELECT id::text, title, notes, status, priority, due_date,
+               recurrence_days, category, tags, created_at, updated_at
+        FROM tasks
+        WHERE ($1::text IS NULL OR status = $1)
+          AND ($2::text IS NULL OR category = $2)
+          AND ($3::int IS NULL OR (due_date IS NOT NULL AND due_date <= CURRENT_DATE + $3))
+        ORDER BY
+            CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+            due_date ASC NULLS LAST,
+            created_at DESC
+        """,
+        status, category, due_soon_days,
+    )
+    return [dict(r) for r in rows]
+
+
+async def get_task(pool: asyncpg.Pool, id: str) -> dict | None:
+    row = await pool.fetchrow(
+        """
+        SELECT id::text, title, notes, status, priority, due_date,
+               recurrence_days, category, tags, created_at, updated_at
+        FROM tasks WHERE id = $1::uuid
+        """,
+        id,
+    )
+    return dict(row) if row else None
+
+
+async def update_task(pool: asyncpg.Pool, id: str, **kwargs) -> dict | None:
+    sets, values, idx = [], [], 1
+    for col in ("title", "notes", "status", "priority", "due_date", "recurrence_days", "category", "tags"):
+        if col in kwargs and kwargs[col] is not None:
+            sets.append(f"{col} = ${idx}")
+            values.append(kwargs[col])
+            idx += 1
+    if not sets:
+        return await get_task(pool, id)
+    values.append(id)
+    row = await pool.fetchrow(
+        f"""
+        UPDATE tasks SET {', '.join(sets)}
+        WHERE id = ${idx}::uuid
+        RETURNING id::text, title, notes, status, priority, due_date,
+                  recurrence_days, category, tags, created_at, updated_at
+        """,
+        *values,
+    )
+    return dict(row) if row else None
+
+
+async def delete_task(pool: asyncpg.Pool, id: str) -> bool:
+    result = await pool.execute("DELETE FROM tasks WHERE id = $1::uuid", id)
+    return result == "DELETE 1"
+
+
+async def complete_task(pool: asyncpg.Pool, id: str) -> dict | None:
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            UPDATE tasks SET status = 'done'
+            WHERE id = $1::uuid
+            RETURNING id::text, title, notes, status, priority, due_date,
+                      recurrence_days, category, tags, created_at, updated_at
+            """,
+            id,
+        )
+        if not row:
+            return None
+        task = dict(row)
+        if task.get("recurrence_days") and task.get("due_date"):
+            import datetime
+            new_due = task["due_date"] + datetime.timedelta(days=task["recurrence_days"])
+            await conn.execute(
+                """
+                INSERT INTO tasks (title, notes, status, priority, due_date, recurrence_days, category, tags)
+                VALUES ($1, $2, 'open', $3, $4, $5, $6, $7)
+                """,
+                task["title"], task["notes"], task["priority"],
+                new_due, task["recurrence_days"], task["category"], task["tags"],
+            )
+        return task
+
+
+# ── Contact helpers ───────────────────────────────────────────────────────────
+
+async def create_contact(pool: asyncpg.Pool, **kwargs) -> dict:
+    row = await pool.fetchrow(
+        """
+        INSERT INTO contacts (name, email, phone, company, notes, tags)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id::text, name, email, phone, company, last_contact_at,
+                  notes, tags, created_at, updated_at
+        """,
+        kwargs["name"], kwargs.get("email"), kwargs.get("phone"),
+        kwargs.get("company"), kwargs.get("notes"), kwargs.get("tags", []),
+    )
+    return dict(row)
+
+
+async def list_contacts(pool: asyncpg.Pool, reach_out_days: int | None = None) -> list[dict]:
+    rows = await pool.fetch(
+        """
+        SELECT id::text, name, email, phone, company, last_contact_at,
+               notes, tags, created_at, updated_at
+        FROM contacts
+        WHERE ($1::int IS NULL
+               OR last_contact_at IS NULL
+               OR last_contact_at < NOW() - ($1 || ' days')::interval)
+        ORDER BY last_contact_at ASC NULLS FIRST, name ASC
+        """,
+        reach_out_days,
+    )
+    return [dict(r) for r in rows]
+
+
+async def get_contact(pool: asyncpg.Pool, id: str) -> dict | None:
+    row = await pool.fetchrow(
+        """
+        SELECT id::text, name, email, phone, company, last_contact_at,
+               notes, tags, created_at, updated_at
+        FROM contacts WHERE id = $1::uuid
+        """,
+        id,
+    )
+    return dict(row) if row else None
+
+
+async def update_contact(pool: asyncpg.Pool, id: str, **kwargs) -> dict | None:
+    sets, values, idx = [], [], 1
+    for col in ("name", "email", "phone", "company", "notes", "tags"):
+        if col in kwargs and kwargs[col] is not None:
+            sets.append(f"{col} = ${idx}")
+            values.append(kwargs[col])
+            idx += 1
+    if not sets:
+        return await get_contact(pool, id)
+    values.append(id)
+    row = await pool.fetchrow(
+        f"""
+        UPDATE contacts SET {', '.join(sets)}
+        WHERE id = ${idx}::uuid
+        RETURNING id::text, name, email, phone, company, last_contact_at,
+                  notes, tags, created_at, updated_at
+        """,
+        *values,
+    )
+    return dict(row) if row else None
+
+
+async def delete_contact(pool: asyncpg.Pool, id: str) -> bool:
+    result = await pool.execute("DELETE FROM contacts WHERE id = $1::uuid", id)
+    return result == "DELETE 1"
+
+
+async def log_interaction(pool: asyncpg.Pool, id: str, note: str) -> dict | None:
+    import datetime
+    timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    row = await pool.fetchrow(
+        """
+        UPDATE contacts
+        SET last_contact_at = NOW(),
+            notes = CASE
+                WHEN notes IS NULL OR notes = '' THEN $2 || ': ' || $3
+                ELSE notes || E'\n\n' || $2 || ': ' || $3
+            END
+        WHERE id = $1::uuid
+        RETURNING id::text, name, email, phone, company, last_contact_at,
+                  notes, tags, created_at, updated_at
+        """,
+        id, timestamp, note,
+    )
+    return dict(row) if row else None
+
+
+# ── Home item helpers ─────────────────────────────────────────────────────────
+
+async def create_home_item(pool: asyncpg.Pool, **kwargs) -> dict:
+    row = await pool.fetchrow(
+        """
+        INSERT INTO home_items (name, notes, interval_days, next_due_at, tags)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id::text, name, notes, last_done_at, next_due_at,
+                  interval_days, tags, created_at, updated_at
+        """,
+        kwargs["name"], kwargs.get("notes"), kwargs.get("interval_days"),
+        kwargs.get("next_due_at"), kwargs.get("tags", []),
+    )
+    return dict(row)
+
+
+async def list_home_items(pool: asyncpg.Pool, due_soon_days: int | None = None) -> list[dict]:
+    rows = await pool.fetch(
+        """
+        SELECT id::text, name, notes, last_done_at, next_due_at,
+               interval_days, tags, created_at, updated_at
+        FROM home_items
+        WHERE ($1::int IS NULL OR (next_due_at IS NOT NULL AND next_due_at <= NOW() + ($1 || ' days')::interval))
+        ORDER BY next_due_at ASC NULLS LAST, name ASC
+        """,
+        due_soon_days,
+    )
+    return [dict(r) for r in rows]
+
+
+async def get_home_item(pool: asyncpg.Pool, id: str) -> dict | None:
+    row = await pool.fetchrow(
+        """
+        SELECT id::text, name, notes, last_done_at, next_due_at,
+               interval_days, tags, created_at, updated_at
+        FROM home_items WHERE id = $1::uuid
+        """,
+        id,
+    )
+    return dict(row) if row else None
+
+
+async def update_home_item(pool: asyncpg.Pool, id: str, **kwargs) -> dict | None:
+    sets, values, idx = [], [], 1
+    for col in ("name", "notes", "interval_days", "next_due_at", "tags"):
+        if col in kwargs and kwargs[col] is not None:
+            sets.append(f"{col} = ${idx}")
+            values.append(kwargs[col])
+            idx += 1
+    if not sets:
+        return await get_home_item(pool, id)
+    values.append(id)
+    row = await pool.fetchrow(
+        f"""
+        UPDATE home_items SET {', '.join(sets)}
+        WHERE id = ${idx}::uuid
+        RETURNING id::text, name, notes, last_done_at, next_due_at,
+                  interval_days, tags, created_at, updated_at
+        """,
+        *values,
+    )
+    return dict(row) if row else None
+
+
+async def delete_home_item(pool: asyncpg.Pool, id: str) -> bool:
+    result = await pool.execute("DELETE FROM home_items WHERE id = $1::uuid", id)
+    return result == "DELETE 1"
+
+
+async def complete_home_item(pool: asyncpg.Pool, id: str) -> dict | None:
+    row = await pool.fetchrow(
+        """
+        UPDATE home_items
+        SET last_done_at = NOW(),
+            next_due_at  = CASE
+                WHEN interval_days IS NOT NULL THEN NOW() + (interval_days || ' days')::interval
+                ELSE next_due_at
+            END
+        WHERE id = $1::uuid
+        RETURNING id::text, name, notes, last_done_at, next_due_at,
+                  interval_days, tags, created_at, updated_at
+        """,
+        id,
+    )
+    return dict(row) if row else None
+
+
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+
+async def get_dashboard(pool: asyncpg.Pool) -> dict:
+    overdue_tasks = await pool.fetch(
+        """
+        SELECT id::text, title, notes, status, priority, due_date,
+               recurrence_days, category, tags, created_at, updated_at
+        FROM tasks
+        WHERE status = 'open' AND due_date < CURRENT_DATE
+        ORDER BY due_date ASC
+        """
+    )
+    due_soon_tasks = await pool.fetch(
+        """
+        SELECT id::text, title, notes, status, priority, due_date,
+               recurrence_days, category, tags, created_at, updated_at
+        FROM tasks
+        WHERE status = 'open' AND due_date >= CURRENT_DATE AND due_date <= CURRENT_DATE + 7
+        ORDER BY due_date ASC
+        """
+    )
+    overdue_home = await pool.fetch(
+        """
+        SELECT id::text, name, notes, last_done_at, next_due_at,
+               interval_days, tags, created_at, updated_at
+        FROM home_items
+        WHERE next_due_at < NOW()
+        ORDER BY next_due_at ASC
+        """
+    )
+    due_soon_home = await pool.fetch(
+        """
+        SELECT id::text, name, notes, last_done_at, next_due_at,
+               interval_days, tags, created_at, updated_at
+        FROM home_items
+        WHERE next_due_at >= NOW() AND next_due_at <= NOW() + interval '7 days'
+        ORDER BY next_due_at ASC
+        """
+    )
+    contacts_to_reach = await pool.fetch(
+        """
+        SELECT id::text, name, email, phone, company, last_contact_at,
+               notes, tags, created_at, updated_at
+        FROM contacts
+        WHERE last_contact_at IS NULL OR last_contact_at < NOW() - interval '14 days'
+        ORDER BY last_contact_at ASC NULLS FIRST
+        """
+    )
+    return {
+        "overdue_tasks":     [dict(r) for r in overdue_tasks],
+        "due_soon_tasks":    [dict(r) for r in due_soon_tasks],
+        "overdue_home":      [dict(r) for r in overdue_home],
+        "due_soon_home":     [dict(r) for r in due_soon_home],
+        "contacts_to_reach": [dict(r) for r in contacts_to_reach],
+    }

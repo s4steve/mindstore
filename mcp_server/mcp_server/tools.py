@@ -141,6 +141,148 @@ async def _call_ingest(
     return await _call_ingestion("POST", "/ingest", payload)
 
 
+    # ── Tasks ──────────────────────────────────────────────────────────────────
+
+    @mcp.tool()
+    async def add_task(
+        title: str,
+        notes: str | None = None,
+        priority: str = "medium",
+        due_date: str | None = None,
+        recurrence_days: int | None = None,
+        category: str = "general",
+        tags: list[str] = [],
+    ) -> dict:
+        """Add a task. priority: high/medium/low. category: general/work/personal/health/finance/home."""
+        payload = {"title": title, "priority": priority, "category": category, "tags": tags}
+        if notes:        payload["notes"] = notes
+        if due_date:     payload["due_date"] = due_date
+        if recurrence_days: payload["recurrence_days"] = recurrence_days
+        return await _call_ingestion("POST", "/tasks", payload)
+
+    @mcp.tool()
+    async def update_task(
+        id: str,
+        title: str | None = None,
+        notes: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        due_date: str | None = None,
+        recurrence_days: int | None = None,
+        category: str | None = None,
+        tags: list[str] | None = None,
+    ) -> dict:
+        """Update a task."""
+        payload = {k: v for k, v in locals().items() if k != "id" and v is not None}
+        return await _call_ingestion("PUT", f"/tasks/{id}", payload)
+
+    @mcp.tool()
+    async def complete_task(id: str) -> dict:
+        """Mark a task done. If it recurs, creates the next occurrence."""
+        return await _call_ingestion("POST", f"/tasks/{id}/complete")
+
+    @mcp.tool()
+    async def list_tasks(
+        status: str | None = None,
+        category: str | None = None,
+        due_soon_days: int | None = None,
+    ) -> list[dict]:
+        """List tasks. Filter by status (open/done/cancelled), category, or tasks due within N days."""
+        params = {k: v for k, v in locals().items() if v is not None}
+        path = "/tasks?" + "&".join(f"{k}={v}" for k, v in params.items()) if params else "/tasks"
+        return await _call_ingestion("GET", path)
+
+    # ── Contacts ───────────────────────────────────────────────────────────────
+
+    @mcp.tool()
+    async def add_contact(
+        name: str,
+        email: str | None = None,
+        phone: str | None = None,
+        company: str | None = None,
+        notes: str | None = None,
+        tags: list[str] = [],
+    ) -> dict:
+        """Add a contact."""
+        payload = {"name": name, "tags": tags}
+        for k, v in [("email", email), ("phone", phone), ("company", company), ("notes", notes)]:
+            if v: payload[k] = v
+        return await _call_ingestion("POST", "/contacts", payload)
+
+    @mcp.tool()
+    async def update_contact(
+        id: str,
+        name: str | None = None,
+        email: str | None = None,
+        phone: str | None = None,
+        company: str | None = None,
+        notes: str | None = None,
+        tags: list[str] | None = None,
+    ) -> dict:
+        """Update a contact."""
+        payload = {k: v for k, v in locals().items() if k != "id" and v is not None}
+        return await _call_ingestion("PUT", f"/contacts/{id}", payload)
+
+    @mcp.tool()
+    async def log_interaction(id: str, note: str) -> dict:
+        """Log an interaction with a contact. Appends a timestamped note and sets last_contact_at."""
+        return await _call_ingestion("POST", f"/contacts/{id}/interaction", {"note": note})
+
+    @mcp.tool()
+    async def list_contacts(reach_out_days: int | None = None) -> list[dict]:
+        """List contacts. Pass reach_out_days to filter contacts not reached in that many days."""
+        path = f"/contacts?reach_out_days={reach_out_days}" if reach_out_days else "/contacts"
+        return await _call_ingestion("GET", path)
+
+    # ── Home items ─────────────────────────────────────────────────────────────
+
+    @mcp.tool()
+    async def add_home_item(
+        name: str,
+        notes: str | None = None,
+        interval_days: int | None = None,
+        next_due_at: str | None = None,
+        tags: list[str] = [],
+    ) -> dict:
+        """Add a home maintenance item (e.g. 'Change air filter', interval_days=90)."""
+        payload = {"name": name, "tags": tags}
+        if notes:         payload["notes"] = notes
+        if interval_days: payload["interval_days"] = interval_days
+        if next_due_at:   payload["next_due_at"] = next_due_at
+        return await _call_ingestion("POST", "/home", payload)
+
+    @mcp.tool()
+    async def update_home_item(
+        id: str,
+        name: str | None = None,
+        notes: str | None = None,
+        interval_days: int | None = None,
+        next_due_at: str | None = None,
+        tags: list[str] | None = None,
+    ) -> dict:
+        """Update a home maintenance item."""
+        payload = {k: v for k, v in locals().items() if k != "id" and v is not None}
+        return await _call_ingestion("PUT", f"/home/{id}", payload)
+
+    @mcp.tool()
+    async def complete_home_item(id: str) -> dict:
+        """Mark a home item done. Sets last_done_at=now and advances next_due_at by interval_days."""
+        return await _call_ingestion("POST", f"/home/{id}/complete")
+
+    @mcp.tool()
+    async def list_home_items(due_soon_days: int | None = None) -> list[dict]:
+        """List home maintenance items. Pass due_soon_days to filter items due within N days."""
+        path = f"/home?due_soon_days={due_soon_days}" if due_soon_days else "/home"
+        return await _call_ingestion("GET", path)
+
+    # ── Dashboard ──────────────────────────────────────────────────────────────
+
+    @mcp.tool()
+    async def get_dashboard() -> dict:
+        """Get a dashboard summary: overdue/due-soon tasks, overdue/due-soon home items, contacts to reach out to."""
+        return await _call_ingestion("GET", "/dashboard")
+
+
 async def _call_ingestion(method: str, path: str, payload: dict | None = None) -> dict:
     async with httpx.AsyncClient() as client:
         response = await client.request(

@@ -15,6 +15,10 @@ from .models import (
     DeleteResponse,
     BulkIngestRequest, BulkIngestResponse,
     HealthResponse, StatsResponse,
+    TaskCreate, TaskUpdate, TaskResponse,
+    ContactCreate, ContactUpdate, ContactResponse, ContactInteraction,
+    HomeItemCreate, HomeItemUpdate, HomeItemResponse,
+    DashboardResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -128,4 +132,156 @@ async def ingest_batch(request: BulkIngestRequest):
         results=results,
         total_entries=len(results),
         total_chunks=sum(r.chunks_created for r in results),
+    )
+
+
+# ── Tasks ─────────────────────────────────────────────────────────────────────
+
+@app.post("/tasks", response_model=TaskResponse, dependencies=[Depends(get_api_key)])
+async def create_task(request: TaskCreate):
+    data = await db_module.create_task(get_pool(), **request.model_dump())
+    return TaskResponse(**data)
+
+
+@app.get("/tasks", response_model=list[TaskResponse], dependencies=[Depends(get_api_key)])
+async def list_tasks(status: str | None = None, category: str | None = None, due_soon_days: int | None = None):
+    rows = await db_module.list_tasks(get_pool(), status=status, category=category, due_soon_days=due_soon_days)
+    return [TaskResponse(**r) for r in rows]
+
+
+@app.get("/tasks/{id}", response_model=TaskResponse, dependencies=[Depends(get_api_key)])
+async def get_task(id: str):
+    row = await db_module.get_task(get_pool(), id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return TaskResponse(**row)
+
+
+@app.put("/tasks/{id}", response_model=TaskResponse, dependencies=[Depends(get_api_key)])
+async def update_task(id: str, request: TaskUpdate):
+    row = await db_module.update_task(get_pool(), id, **{k: v for k, v in request.model_dump().items() if v is not None})
+    if not row:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return TaskResponse(**row)
+
+
+@app.delete("/tasks/{id}", response_model=DeleteResponse, dependencies=[Depends(get_api_key)])
+async def delete_task(id: str):
+    deleted = await db_module.delete_task(get_pool(), id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return DeleteResponse(id=id, deleted=True)
+
+
+@app.post("/tasks/{id}/complete", response_model=TaskResponse, dependencies=[Depends(get_api_key)])
+async def complete_task(id: str):
+    row = await db_module.complete_task(get_pool(), id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return TaskResponse(**row)
+
+
+# ── Contacts ──────────────────────────────────────────────────────────────────
+
+@app.post("/contacts", response_model=ContactResponse, dependencies=[Depends(get_api_key)])
+async def create_contact(request: ContactCreate):
+    data = await db_module.create_contact(get_pool(), **request.model_dump())
+    return ContactResponse(**data)
+
+
+@app.get("/contacts", response_model=list[ContactResponse], dependencies=[Depends(get_api_key)])
+async def list_contacts(reach_out_days: int | None = None):
+    rows = await db_module.list_contacts(get_pool(), reach_out_days=reach_out_days)
+    return [ContactResponse(**r) for r in rows]
+
+
+@app.get("/contacts/{id}", response_model=ContactResponse, dependencies=[Depends(get_api_key)])
+async def get_contact(id: str):
+    row = await db_module.get_contact(get_pool(), id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return ContactResponse(**row)
+
+
+@app.put("/contacts/{id}", response_model=ContactResponse, dependencies=[Depends(get_api_key)])
+async def update_contact(id: str, request: ContactUpdate):
+    row = await db_module.update_contact(get_pool(), id, **{k: v for k, v in request.model_dump().items() if v is not None})
+    if not row:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return ContactResponse(**row)
+
+
+@app.delete("/contacts/{id}", response_model=DeleteResponse, dependencies=[Depends(get_api_key)])
+async def delete_contact(id: str):
+    deleted = await db_module.delete_contact(get_pool(), id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return DeleteResponse(id=id, deleted=True)
+
+
+@app.post("/contacts/{id}/interaction", response_model=ContactResponse, dependencies=[Depends(get_api_key)])
+async def log_interaction(id: str, request: ContactInteraction):
+    row = await db_module.log_interaction(get_pool(), id, request.note)
+    if not row:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return ContactResponse(**row)
+
+
+# ── Home items ────────────────────────────────────────────────────────────────
+
+@app.post("/home", response_model=HomeItemResponse, dependencies=[Depends(get_api_key)])
+async def create_home_item(request: HomeItemCreate):
+    data = await db_module.create_home_item(get_pool(), **request.model_dump())
+    return HomeItemResponse(**data)
+
+
+@app.get("/home", response_model=list[HomeItemResponse], dependencies=[Depends(get_api_key)])
+async def list_home_items(due_soon_days: int | None = None):
+    rows = await db_module.list_home_items(get_pool(), due_soon_days=due_soon_days)
+    return [HomeItemResponse(**r) for r in rows]
+
+
+@app.get("/home/{id}", response_model=HomeItemResponse, dependencies=[Depends(get_api_key)])
+async def get_home_item(id: str):
+    row = await db_module.get_home_item(get_pool(), id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Home item not found")
+    return HomeItemResponse(**row)
+
+
+@app.put("/home/{id}", response_model=HomeItemResponse, dependencies=[Depends(get_api_key)])
+async def update_home_item(id: str, request: HomeItemUpdate):
+    row = await db_module.update_home_item(get_pool(), id, **{k: v for k, v in request.model_dump().items() if v is not None})
+    if not row:
+        raise HTTPException(status_code=404, detail="Home item not found")
+    return HomeItemResponse(**row)
+
+
+@app.delete("/home/{id}", response_model=DeleteResponse, dependencies=[Depends(get_api_key)])
+async def delete_home_item(id: str):
+    deleted = await db_module.delete_home_item(get_pool(), id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Home item not found")
+    return DeleteResponse(id=id, deleted=True)
+
+
+@app.post("/home/{id}/complete", response_model=HomeItemResponse, dependencies=[Depends(get_api_key)])
+async def complete_home_item(id: str):
+    row = await db_module.complete_home_item(get_pool(), id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Home item not found")
+    return HomeItemResponse(**row)
+
+
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+
+@app.get("/dashboard", response_model=DashboardResponse, dependencies=[Depends(get_api_key)])
+async def get_dashboard():
+    data = await db_module.get_dashboard(get_pool())
+    return DashboardResponse(
+        overdue_tasks=[TaskResponse(**r) for r in data["overdue_tasks"]],
+        due_soon_tasks=[TaskResponse(**r) for r in data["due_soon_tasks"]],
+        overdue_home=[HomeItemResponse(**r) for r in data["overdue_home"]],
+        due_soon_home=[HomeItemResponse(**r) for r in data["due_soon_home"]],
+        contacts_to_reach=[ContactResponse(**r) for r in data["contacts_to_reach"]],
     )

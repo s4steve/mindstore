@@ -33,6 +33,39 @@ server {
         proxy_pass_request_headers on;
     }
 
+    # Proxy /api/tasks, /api/contacts, /api/home, /api/dashboard → ingestion service
+    location /api/tasks {
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass http://ingestion:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-API-Key ${API_KEY};
+        proxy_pass_request_headers on;
+    }
+
+    location /api/contacts {
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass http://ingestion:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-API-Key ${API_KEY};
+        proxy_pass_request_headers on;
+    }
+
+    location /api/home {
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass http://ingestion:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-API-Key ${API_KEY};
+        proxy_pass_request_headers on;
+    }
+
+    location /api/dashboard {
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass http://ingestion:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-API-Key ${API_KEY};
+        proxy_pass_request_headers on;
+    }
+
     # Serve the frontend — no-cache so updates are always picked up
     location / {
         try_files $uri $uri/ /index.html;

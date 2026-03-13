@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home — Mindstore</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#f5f4f0; --bg-1:#ffffff; --bg-2:#edecea;
+      --border:#d8d6ce; --border-2:#e6e4dc;
+      --text:#1a1918; --text-dim:#6b6966; --text-dimmer:#b5b2ac;
+      --accent:#2563eb; --accent-dim:#1d4ed8;
+      --green:#16a34a; --red:#dc2626; --yellow:#d97706;
+      --font:'JetBrains Mono', monospace;
+    }
+    html, body { height:100%; background:var(--bg); color:var(--text); font-family:var(--font); font-size:13px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+    body { display:flex; flex-direction:column; min-height:100vh; }
+
+    #toast { position:fixed; bottom:20px; right:20px; background:var(--bg-1); border:1px solid var(--border); border-left:3px solid var(--green); padding:9px 14px; font-size:11px; color:var(--green); letter-spacing:.04em; opacity:0; transform:translateY(6px); transition:opacity .18s,transform .18s; pointer-events:none; z-index:99; }
+    #toast.error { border-left-color:var(--red); color:var(--red); }
+    #toast.show  { opacity:1; transform:translateY(0); }
+
+    header { display:flex; align-items:center; justify-content:space-between; padding:14px 28px; border-bottom:1px solid var(--border); background:var(--bg-1); flex-shrink:0; }
+    .logo { font-size:11px; font-weight:600; letter-spacing:.18em; color:var(--accent); text-transform:uppercase; }
+    .logo em { color:var(--text-dim); font-style:normal; font-weight:300; }
+
+    main { flex:1; max-width:860px; width:100%; margin:0 auto; padding:36px 28px; }
+
+    .add-form { background:var(--bg-1); border:1px solid var(--border); border-left:2px solid var(--accent); padding:18px 20px; margin-bottom:24px; }
+    .form-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    .form-row:last-child { margin-bottom:0; }
+    input[type=text], input[type=datetime-local], textarea.notes-input {
+      background:var(--bg); border:1px solid var(--border); color:var(--text);
+      font-family:var(--font); font-size:12px; padding:7px 10px; outline:none;
+      transition:border-color .15s;
+    }
+    input[type=text]:focus, input[type=datetime-local]:focus, textarea.notes-input:focus {
+      border-color:var(--accent); background:var(--bg-2);
+    }
+    .input-name { flex:1; min-width:200px; }
+    textarea.notes-input { width:100%; min-height:60px; resize:vertical; }
+
+    .btn { background:var(--accent); color:#000; border:none; font-family:var(--font); font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; padding:8px 20px; cursor:pointer; transition:background .12s; }
+    .btn:hover { background:var(--accent-dim); }
+    .btn-sm { padding:4px 10px; font-size:9px; }
+    .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text-dim); }
+    .btn-ghost:hover { background:var(--bg-2); border-color:var(--accent); color:var(--accent); }
+    .btn-done { background:transparent; border:1px solid var(--green); color:var(--green); }
+    .btn-done:hover { background:var(--green); color:#fff; }
+    .btn-danger { background:transparent; border:1px solid var(--border); color:var(--text-dimmer); }
+    .btn-danger:hover { background:var(--red); border-color:var(--red); color:#fff; }
+
+    .item { background:var(--bg-1); border:1px solid var(--border-2); border-left:3px solid var(--border); padding:12px 16px; margin-bottom:8px; display:grid; grid-template-columns:1fr auto; gap:10px; align-items:start; }
+    .item.overdue { border-left-color:var(--red); }
+    .item.due-soon { border-left-color:var(--yellow); }
+    .item-name { font-size:13px; font-weight:500; }
+    .item-meta { font-size:10px; color:var(--text-dim); letter-spacing:.04em; margin-top:3px; display:flex; gap:10px; flex-wrap:wrap; }
+    .overdue-label { color:var(--red); font-weight:500; }
+    .due-soon-label { color:var(--yellow); font-weight:500; }
+    .item-notes { font-size:11px; color:var(--text-dim); margin-top:5px; white-space:pre-wrap; }
+    .item-actions { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+    .edit-form { margin-top:12px; padding-top:12px; border-top:1px solid var(--border-2); display:none; }
+    .edit-form.open { display:block; }
+
+    .empty { font-size:11px; color:var(--text-dimmer); font-style:italic; padding:20px 0; }
+
+    footer { padding:11px 28px; border-top:1px solid var(--border); background:var(--bg-1); font-size:10px; color:var(--text-dimmer); letter-spacing:.05em; }
+    ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:var(--bg); } ::-webkit-scrollbar-thumb { background:var(--border); }
+  </style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<header>
+  <div class="logo">MIND<em>STORE</em></div>
+</header>
+
+<main>
+  <div class="add-form">
+    <div class="form-row">
+      <input type="text" class="input-name" id="newName" placeholder="Item name (e.g. Change air filter)…" autocomplete="off">
+      <input type="text" id="newInterval" placeholder="interval (days)" style="width:140px" title="How often, in days">
+      <input type="datetime-local" id="newNextDue" title="Next due date">
+    </div>
+    <div class="form-row">
+      <textarea class="notes-input" id="newNotes" placeholder="Notes (optional)…"></textarea>
+    </div>
+    <div class="form-row">
+      <button class="btn" id="addBtn">+ Add Item</button>
+    </div>
+  </div>
+
+  <div id="itemList"><div class="empty">loading…</div></div>
+</main>
+
+<footer id="footerCount">—</footer>
+
+<script>
+  const listEl  = document.getElementById('itemList');
+  const toastEl = document.getElementById('toast');
+  let toastTimer = null;
+
+  function toast(msg, type = '') {
+    clearTimeout(toastTimer);
+    toastEl.textContent = msg;
+    toastEl.className = `show ${type}`;
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2800);
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+  }
+
+  function dueLabel(iso) {
+    if (!iso) return { text: '—', cls: '' };
+    const now = Date.now();
+    const diff = new Date(iso) - now;
+    const days = Math.ceil(diff / 86400000);
+    if (days < 0)  return { text: `${Math.abs(days)}d overdue`, cls: 'overdue-label' };
+    if (days === 0) return { text: 'due today', cls: 'due-soon-label' };
+    if (days <= 7)  return { text: `due in ${days}d`, cls: 'due-soon-label' };
+    return { text: `due in ${days}d`, cls: '' };
+  }
+
+  async function api(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch('/api' + path, opts);
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${res.status}`); }
+    return res.status === 204 ? null : res.json();
+  }
+
+  async function loadItems() {
+    try {
+      const items = await api('GET', '/home');
+      render(items);
+    } catch (e) {
+      listEl.innerHTML = `<div class="empty">error: ${esc(e.message)}</div>`;
+    }
+  }
+
+  function render(items) {
+    document.getElementById('footerCount').textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
+    if (!items.length) { listEl.innerHTML = '<div class="empty">no home items</div>'; return; }
+    listEl.innerHTML = '';
+    const now = Date.now();
+    items.forEach(it => {
+      const due = it.next_due_at ? new Date(it.next_due_at) : null;
+      const diffDays = due ? Math.ceil((due - now) / 86400000) : null;
+      const overdue  = diffDays !== null && diffDays < 0;
+      const dueSoon  = diffDays !== null && diffDays >= 0 && diffDays <= 7;
+      const lbl      = dueLabel(it.next_due_at);
+      const el = document.createElement('div');
+      el.className = `item${overdue ? ' overdue' : dueSoon ? ' due-soon' : ''}`;
+      el.dataset.id = it.id;
+      // build datetime-local value for edit form
+      const nextDueVal = it.next_due_at ? it.next_due_at.slice(0,16) : '';
+      el.innerHTML = `
+        <div>
+          <div class="item-name">${esc(it.name)}</div>
+          <div class="item-meta">
+            ${lbl.text !== '—' ? `<span class="${lbl.cls}">${lbl.text}</span>` : ''}
+            ${it.interval_days ? `<span>every ${it.interval_days}d</span>` : ''}
+            ${it.last_done_at  ? `<span>last: ${fmtDate(it.last_done_at)}</span>` : ''}
+            ${(it.tags||[]).map(t=>`<span>#${esc(t)}</span>`).join('')}
+          </div>
+          ${it.notes ? `<div class="item-notes">${esc(it.notes)}</div>` : ''}
+          <div class="edit-form" id="edit-${it.id}">
+            <div class="form-row">
+              <input type="text" class="input-name e-name" value="${esc(it.name)}" placeholder="Name">
+              <input type="text" class="e-interval" value="${it.interval_days||''}" placeholder="interval days" style="width:120px">
+              <input type="datetime-local" class="e-nextdue" value="${nextDueVal}">
+            </div>
+            <div class="form-row"><textarea class="notes-input e-notes" placeholder="Notes…">${esc(it.notes||'')}</textarea></div>
+            <div class="form-row">
+              <button class="btn btn-sm save-btn" data-id="${it.id}">Save</button>
+              <button class="btn btn-sm btn-ghost cancel-btn" data-id="${it.id}">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <div class="item-actions">
+          <button class="btn btn-sm btn-done done-btn" data-id="${it.id}">✓ done</button>
+          <button class="btn btn-sm btn-ghost edit-btn" data-id="${it.id}">edit</button>
+          <button class="btn btn-sm btn-danger delete-btn" data-id="${it.id}">✕</button>
+        </div>`;
+      listEl.appendChild(el);
+    });
+
+    listEl.querySelectorAll('.done-btn').forEach(btn => btn.addEventListener('click', async () => {
+      try {
+        const updated = await api('POST', `/home/${btn.dataset.id}/complete`);
+        toast('marked done!');
+        // update row in place
+        const row = listEl.querySelector(`[data-id="${btn.dataset.id}"]`);
+        if (row) {
+          const lbl = dueLabel(updated.next_due_at);
+          const meta = row.querySelector('.item-meta');
+          if (meta) {
+            const spans = meta.querySelectorAll('span');
+            // refresh first span (due label)
+            if (spans[0]) { spans[0].textContent = lbl.text; spans[0].className = lbl.cls; }
+          }
+        }
+        loadItems();
+      } catch (e) { toast(e.message, 'error'); }
+    }));
+    listEl.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm('Delete this item?')) return;
+      try { await api('DELETE', `/home/${btn.dataset.id}`); toast('deleted'); loadItems(); }
+      catch (e) { toast(e.message, 'error'); }
+    }));
+    listEl.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', () => {
+      document.getElementById(`edit-${btn.dataset.id}`).classList.toggle('open');
+    }));
+    listEl.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', () => {
+      document.getElementById(`edit-${btn.dataset.id}`).classList.remove('open');
+    }));
+    listEl.querySelectorAll('.save-btn').forEach(btn => btn.addEventListener('click', async () => {
+      const form = document.getElementById(`edit-${btn.dataset.id}`);
+      const body = {
+        name:          form.querySelector('.e-name').value.trim(),
+        interval_days: parseInt(form.querySelector('.e-interval').value) || null,
+        next_due_at:   form.querySelector('.e-nextdue').value || null,
+        notes:         form.querySelector('.e-notes').value.trim() || null,
+      };
+      try { await api('PUT', `/home/${btn.dataset.id}`, body); toast('saved'); loadItems(); }
+      catch (e) { toast(e.message, 'error'); }
+    }));
+  }
+
+  document.getElementById('addBtn').addEventListener('click', async () => {
+    const name = document.getElementById('newName').value.trim();
+    if (!name) return;
+    const body = {
+      name,
+      interval_days: parseInt(document.getElementById('newInterval').value) || null,
+      next_due_at:   document.getElementById('newNextDue').value || null,
+      notes:         document.getElementById('newNotes').value.trim() || null,
+    };
+    try {
+      await api('POST', '/home', body);
+      toast('item added');
+      ['newName','newInterval','newNotes'].forEach(id => { document.getElementById(id).value = ''; });
+      document.getElementById('newNextDue').value = '';
+      loadItems();
+    } catch (e) { toast(e.message, 'error'); }
+  });
+
+  document.getElementById('newName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('addBtn').click();
+  });
+
+  loadItems();
+</script>
+<script src="/nav.js"></script>
+</body>
+</html>

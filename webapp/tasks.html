@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tasks — Mindstore</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#f5f4f0; --bg-1:#ffffff; --bg-2:#edecea;
+      --border:#d8d6ce; --border-2:#e6e4dc;
+      --text:#1a1918; --text-dim:#6b6966; --text-dimmer:#b5b2ac;
+      --accent:#2563eb; --accent-dim:#1d4ed8;
+      --green:#16a34a; --red:#dc2626; --yellow:#d97706;
+      --font:'JetBrains Mono', monospace;
+    }
+    html, body { height:100%; background:var(--bg); color:var(--text); font-family:var(--font); font-size:13px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+    body { display:flex; flex-direction:column; min-height:100vh; }
+
+    #toast { position:fixed; bottom:20px; right:20px; background:var(--bg-1); border:1px solid var(--border); border-left:3px solid var(--green); padding:9px 14px; font-size:11px; color:var(--green); letter-spacing:.04em; opacity:0; transform:translateY(6px); transition:opacity .18s,transform .18s; pointer-events:none; z-index:99; }
+    #toast.error { border-left-color:var(--red); color:var(--red); }
+    #toast.show  { opacity:1; transform:translateY(0); }
+
+    header { display:flex; align-items:center; justify-content:space-between; padding:14px 28px; border-bottom:1px solid var(--border); background:var(--bg-1); flex-shrink:0; }
+    .logo { font-size:11px; font-weight:600; letter-spacing:.18em; color:var(--accent); text-transform:uppercase; }
+    .logo em { color:var(--text-dim); font-style:normal; font-weight:300; }
+
+    main { flex:1; max-width:860px; width:100%; margin:0 auto; padding:36px 28px; }
+
+    /* Filters */
+    .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+    .filter-btn { background:var(--bg-1); border:1px solid var(--border); color:var(--text-dim); font-family:var(--font); font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:5px 12px; cursor:pointer; transition:all .12s; }
+    .filter-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .filter-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+    /* Add form */
+    .add-form { background:var(--bg-1); border:1px solid var(--border); border-left:2px solid var(--accent); padding:18px 20px; margin-bottom:24px; }
+    .form-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    .form-row:last-child { margin-bottom:0; }
+    input[type=text], input[type=date], select, textarea.notes-input {
+      background:var(--bg); border:1px solid var(--border); color:var(--text);
+      font-family:var(--font); font-size:12px; padding:7px 10px; outline:none;
+      transition:border-color .15s;
+    }
+    input[type=text]:focus, input[type=date]:focus, select:focus, textarea.notes-input:focus {
+      border-color:var(--accent); background:var(--bg-2);
+    }
+    .input-title { flex:1; min-width:200px; }
+    select { cursor:pointer; }
+    textarea.notes-input { width:100%; min-height:60px; resize:vertical; }
+    .btn { background:var(--accent); color:#000; border:none; font-family:var(--font); font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; padding:8px 20px; cursor:pointer; transition:background .12s; }
+    .btn:hover { background:var(--accent-dim); }
+    .btn-sm { padding:4px 10px; font-size:9px; }
+    .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text-dim); }
+    .btn-ghost:hover { background:var(--bg-2); border-color:var(--accent); color:var(--accent); }
+    .btn-danger { background:transparent; border:1px solid var(--border); color:var(--text-dimmer); }
+    .btn-danger:hover { background:var(--red); border-color:var(--red); color:#fff; }
+
+    /* Task list */
+    .task-item { background:var(--bg-1); border:1px solid var(--border-2); border-left:3px solid var(--border); padding:12px 16px; margin-bottom:8px; display:grid; grid-template-columns:1fr auto; gap:10px; align-items:start; transition:border-color .15s; }
+    .task-item.overdue { border-left-color:var(--red); }
+    .task-item.done { opacity:.55; }
+    .task-item.priority-high { border-left-color:var(--red); }
+    .task-item.priority-medium { border-left-color:var(--yellow); }
+    .task-item.priority-low { border-left-color:var(--border); }
+    .task-item.overdue.priority-high,
+    .task-item.overdue.priority-medium,
+    .task-item.overdue.priority-low { border-left-color:var(--red); }
+
+    .task-title { font-size:13px; font-weight:500; margin-bottom:3px; }
+    .task-meta { display:flex; gap:10px; flex-wrap:wrap; font-size:10px; color:var(--text-dim); letter-spacing:.04em; margin-top:4px; }
+    .badge { display:inline-block; padding:1px 6px; font-size:9px; letter-spacing:.06em; text-transform:uppercase; }
+    .badge-high   { background:#fef2f2; color:var(--red); border:1px solid #fecaca; }
+    .badge-medium { background:#fffbeb; color:var(--yellow); border:1px solid #fde68a; }
+    .badge-low    { background:var(--bg-2); color:var(--text-dimmer); border:1px solid var(--border); }
+    .badge-recur  { background:#f0fdf4; color:var(--green); border:1px solid #bbf7d0; }
+    .overdue-label { color:var(--red); font-weight:500; }
+    .task-actions { display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+    .task-notes { font-size:11px; color:var(--text-dim); margin-top:5px; white-space:pre-wrap; }
+
+    /* Edit form inline */
+    .edit-form { margin-top:12px; padding-top:12px; border-top:1px solid var(--border-2); display:none; }
+    .edit-form.open { display:block; }
+
+    .empty { font-size:11px; color:var(--text-dimmer); font-style:italic; padding:20px 0; }
+
+    footer { padding:11px 28px; border-top:1px solid var(--border); background:var(--bg-1); font-size:10px; color:var(--text-dimmer); letter-spacing:.05em; }
+    ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:var(--bg); } ::-webkit-scrollbar-thumb { background:var(--border); }
+  </style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<header>
+  <div class="logo">MIND<em>STORE</em></div>
+</header>
+
+<main>
+  <div class="add-form">
+    <div class="form-row">
+      <input type="text" class="input-title" id="newTitle" placeholder="Task title…" autocomplete="off">
+      <select id="newPriority">
+        <option value="medium">medium</option>
+        <option value="high">high</option>
+        <option value="low">low</option>
+      </select>
+      <select id="newCategory">
+        <option value="general">general</option>
+        <option value="work">work</option>
+        <option value="personal">personal</option>
+        <option value="health">health</option>
+        <option value="finance">finance</option>
+        <option value="home">home</option>
+      </select>
+      <input type="date" id="newDue" title="Due date">
+      <input type="text" id="newRecur" placeholder="recur (days)" style="width:120px" title="Recurrence in days">
+    </div>
+    <div class="form-row">
+      <textarea class="notes-input" id="newNotes" placeholder="Notes (optional)…"></textarea>
+    </div>
+    <div class="form-row">
+      <button class="btn" id="addBtn">+ Add Task</button>
+    </div>
+  </div>
+
+  <div class="filters" id="filters">
+    <button class="filter-btn active" data-status="">all open</button>
+    <button class="filter-btn" data-status="done">done</button>
+    <button class="filter-btn" data-status="cancelled">cancelled</button>
+    <button class="filter-btn" data-due="7">due this week</button>
+    <button class="filter-btn" data-cat="work">work</button>
+    <button class="filter-btn" data-cat="personal">personal</button>
+    <button class="filter-btn" data-cat="health">health</button>
+    <button class="filter-btn" data-cat="home">home</button>
+  </div>
+
+  <div id="taskList"><div class="empty">loading…</div></div>
+</main>
+
+<footer id="footerCount">—</footer>
+
+<script>
+  const taskListEl = document.getElementById('taskList');
+  const toastEl    = document.getElementById('toast');
+  let toastTimer   = null;
+  let filterStatus = '';
+  let filterCat    = null;
+  let filterDue    = null;
+
+  function toast(msg, type = '') {
+    clearTimeout(toastTimer);
+    toastEl.textContent = msg;
+    toastEl.className = `show ${type}`;
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2800);
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function relDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const diff = Math.round((d - today) / 86400000);
+    if (diff < 0)  return `${Math.abs(diff)}d overdue`;
+    if (diff === 0) return 'today';
+    if (diff === 1) return 'tomorrow';
+    return `in ${diff}d`;
+  }
+
+  async function api(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch('/api' + path, opts);
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${res.status}`); }
+    return res.status === 204 ? null : res.json();
+  }
+
+  async function loadTasks() {
+    try {
+      let qs = '';
+      if (filterStatus)  qs += `?status=${filterStatus}`;
+      else               qs += '?status=open';
+      if (filterCat)     qs += `&category=${filterCat}`;
+      if (filterDue)     qs += `&due_soon_days=${filterDue}`;
+      const tasks = await api('GET', `/tasks${qs}`);
+      render(tasks);
+    } catch (e) {
+      taskListEl.innerHTML = `<div class="empty">error: ${esc(e.message)}</div>`;
+    }
+  }
+
+  function render(tasks) {
+    document.getElementById('footerCount').textContent = `${tasks.length} task${tasks.length !== 1 ? 's' : ''}`;
+    if (!tasks.length) { taskListEl.innerHTML = '<div class="empty">no tasks</div>'; return; }
+    taskListEl.innerHTML = '';
+    const today = new Date(); today.setHours(0,0,0,0);
+    tasks.forEach(t => {
+      const overdue = t.due_date && new Date(t.due_date) < today && t.status === 'open';
+      const el = document.createElement('div');
+      el.className = `task-item priority-${t.priority}${overdue ? ' overdue' : ''}${t.status === 'done' ? ' done' : ''}`;
+      el.dataset.id = t.id;
+      const dueTxt = t.due_date ? `<span class="${overdue ? 'overdue-label' : ''}">${relDate(t.due_date + 'T00:00:00')}</span>` : '';
+      const recurBadge = t.recurrence_days ? `<span class="badge badge-recur">↻ ${t.recurrence_days}d</span>` : '';
+      el.innerHTML = `
+        <div>
+          <div class="task-title">${esc(t.title)}</div>
+          <div class="task-meta">
+            <span class="badge badge-${t.priority}">${t.priority}</span>
+            <span>${esc(t.category)}</span>
+            ${dueTxt}
+            ${recurBadge}
+            ${(t.tags||[]).map(tg=>`<span>#${esc(tg)}</span>`).join('')}
+          </div>
+          ${t.notes ? `<div class="task-notes">${esc(t.notes)}</div>` : ''}
+          <div class="edit-form" id="edit-${t.id}">
+            <div class="form-row">
+              <input type="text" class="input-title e-title" value="${esc(t.title)}" placeholder="Title">
+              <select class="e-priority"><option value="high">high</option><option value="medium">medium</option><option value="low">low</option></select>
+              <select class="e-category"><option value="general">general</option><option value="work">work</option><option value="personal">personal</option><option value="health">health</option><option value="finance">finance</option><option value="home">home</option></select>
+              <input type="date" class="e-due" value="${t.due_date || ''}">
+              <input type="text" class="e-recur" value="${t.recurrence_days || ''}" placeholder="recur days" style="width:100px">
+            </div>
+            <div class="form-row"><textarea class="notes-input e-notes" placeholder="Notes…">${esc(t.notes || '')}</textarea></div>
+            <div class="form-row">
+              <button class="btn btn-sm save-btn" data-id="${t.id}">Save</button>
+              <button class="btn btn-sm btn-ghost cancel-btn" data-id="${t.id}">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <div class="task-actions">
+          ${t.status === 'open' ? `<button class="btn btn-sm complete-btn" data-id="${t.id}">✓ done</button>` : ''}
+          <button class="btn btn-sm btn-ghost edit-btn" data-id="${t.id}">edit</button>
+          <button class="btn btn-sm btn-danger delete-btn" data-id="${t.id}">✕</button>
+        </div>`;
+      // set selects
+      el.querySelector('.e-priority').value = t.priority;
+      el.querySelector('.e-category').value = t.category;
+      taskListEl.appendChild(el);
+    });
+
+    taskListEl.querySelectorAll('.complete-btn').forEach(btn => btn.addEventListener('click', async () => {
+      try { await api('POST', `/tasks/${btn.dataset.id}/complete`); toast('done!'); loadTasks(); }
+      catch (e) { toast(e.message, 'error'); }
+    }));
+    taskListEl.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm('Delete this task?')) return;
+      try { await api('DELETE', `/tasks/${btn.dataset.id}`); toast('deleted'); loadTasks(); }
+      catch (e) { toast(e.message, 'error'); }
+    }));
+    taskListEl.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', () => {
+      document.getElementById(`edit-${btn.dataset.id}`).classList.toggle('open');
+    }));
+    taskListEl.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', () => {
+      document.getElementById(`edit-${btn.dataset.id}`).classList.remove('open');
+    }));
+    taskListEl.querySelectorAll('.save-btn').forEach(btn => btn.addEventListener('click', async () => {
+      const form = document.getElementById(`edit-${btn.dataset.id}`);
+      const body = {
+        title:           form.querySelector('.e-title').value.trim(),
+        priority:        form.querySelector('.e-priority').value,
+        category:        form.querySelector('.e-category').value,
+        notes:           form.querySelector('.e-notes').value.trim() || null,
+        due_date:        form.querySelector('.e-due').value || null,
+        recurrence_days: parseInt(form.querySelector('.e-recur').value) || null,
+      };
+      try { await api('PUT', `/tasks/${btn.dataset.id}`, body); toast('saved'); loadTasks(); }
+      catch (e) { toast(e.message, 'error'); }
+    }));
+  }
+
+  // Filters
+  document.getElementById('filters').addEventListener('click', e => {
+    const btn = e.target.closest('.filter-btn');
+    if (!btn) return;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterStatus = btn.dataset.status ?? '';
+    filterCat    = btn.dataset.cat ?? null;
+    filterDue    = btn.dataset.due ? parseInt(btn.dataset.due) : null;
+    if (btn.dataset.due) filterStatus = '';
+    if (btn.dataset.cat) filterStatus = '';
+    loadTasks();
+  });
+
+  // Add task
+  document.getElementById('addBtn').addEventListener('click', async () => {
+    const title = document.getElementById('newTitle').value.trim();
+    if (!title) return;
+    const body = {
+      title,
+      priority: document.getElementById('newPriority').value,
+      category: document.getElementById('newCategory').value,
+      notes:    document.getElementById('newNotes').value.trim() || null,
+      due_date: document.getElementById('newDue').value || null,
+      recurrence_days: parseInt(document.getElementById('newRecur').value) || null,
+    };
+    try {
+      await api('POST', '/tasks', body);
+      toast('task added');
+      document.getElementById('newTitle').value = '';
+      document.getElementById('newNotes').value = '';
+      document.getElementById('newDue').value = '';
+      document.getElementById('newRecur').value = '';
+      loadTasks();
+    } catch (e) { toast(e.message, 'error'); }
+  });
+
+  document.getElementById('newTitle').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('addBtn').click();
+  });
+
+  loadTasks();
+</script>
+<script src="/nav.js"></script>
+</body>
+</html>

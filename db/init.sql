@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     recurrence_days INTEGER,
     category       TEXT NOT NULL DEFAULT 'general' CHECK (category IN ('general', 'work', 'personal', 'health', 'finance', 'home')),
     tags           TEXT[] DEFAULT '{}',
+    embedding      vector(384),
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -53,6 +54,9 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE INDEX IF NOT EXISTS tasks_tags_idx ON tasks USING gin(tags);
 CREATE INDEX IF NOT EXISTS tasks_due_date_idx ON tasks(due_date);
 CREATE INDEX IF NOT EXISTS tasks_status_idx ON tasks(status);
+CREATE INDEX IF NOT EXISTS tasks_embedding_idx
+    ON tasks USING hnsw (embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
 
 DO $$ BEGIN
     CREATE TRIGGER tasks_updated_at
@@ -71,12 +75,16 @@ CREATE TABLE IF NOT EXISTS contacts (
     last_contact_at  TIMESTAMPTZ,
     notes            TEXT,
     tags             TEXT[] DEFAULT '{}',
+    embedding        vector(384),
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS contacts_tags_idx ON contacts USING gin(tags);
 CREATE INDEX IF NOT EXISTS contacts_last_contact_idx ON contacts(last_contact_at);
+CREATE INDEX IF NOT EXISTS contacts_embedding_idx
+    ON contacts USING hnsw (embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
 
 DO $$ BEGIN
     CREATE TRIGGER contacts_updated_at
@@ -94,12 +102,16 @@ CREATE TABLE IF NOT EXISTS home_items (
     next_due_at    TIMESTAMPTZ,
     interval_days  INTEGER,
     tags           TEXT[] DEFAULT '{}',
+    embedding      vector(384),
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS home_items_tags_idx ON home_items USING gin(tags);
 CREATE INDEX IF NOT EXISTS home_items_next_due_idx ON home_items(next_due_at);
+CREATE INDEX IF NOT EXISTS home_items_embedding_idx
+    ON home_items USING hnsw (embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
 
 DO $$ BEGIN
     CREATE TRIGGER home_items_updated_at

@@ -90,7 +90,13 @@ async def recent(limit: int = 10, content_type: str | None = None):
 @app.get("/search", dependencies=[Depends(get_api_key)])
 async def search_endpoint(q: str, limit: int = 10, content_type: str | None = None):
     embedding = get_embedder().embed(q)
-    return await db_module.semantic_search(get_pool(), embedding=embedding, limit=limit, content_type=content_type)
+    return await db_module.cross_table_search(get_pool(), embedding=embedding, limit=limit, content_type=content_type)
+
+
+def _embed(*parts: str | None) -> list[float]:
+    """Embed the concatenation of non-None parts."""
+    text = "\n".join(p for p in parts if p)
+    return get_embedder().embed(text)
 
 
 @app.put("/thoughts/{id}", response_model=UpdateResponse, dependencies=[Depends(get_api_key)])
@@ -139,7 +145,11 @@ async def ingest_batch(request: BulkIngestRequest):
 
 @app.post("/tasks", response_model=TaskResponse, dependencies=[Depends(get_api_key)])
 async def create_task(request: TaskCreate):
-    data = await db_module.create_task(get_pool(), **request.model_dump())
+    data = await db_module.create_task(
+        get_pool(),
+        embedding=_embed(request.title, request.notes),
+        **request.model_dump(),
+    )
     return TaskResponse(**data)
 
 
@@ -159,7 +169,17 @@ async def get_task(id: str):
 
 @app.put("/tasks/{id}", response_model=TaskResponse, dependencies=[Depends(get_api_key)])
 async def update_task(id: str, request: TaskUpdate):
-    row = await db_module.update_task(get_pool(), id, **{k: v for k, v in request.model_dump().items() if v is not None})
+    fields = {k: v for k, v in request.model_dump().items() if v is not None}
+    embedding = None
+    if "title" in fields or "notes" in fields:
+        # Fetch current values to merge with updates for embedding text
+        current = await db_module.get_task(get_pool(), id)
+        if current:
+            embedding = _embed(
+                fields.get("title", current["title"]),
+                fields.get("notes", current["notes"]),
+            )
+    row = await db_module.update_task(get_pool(), id, embedding=embedding, **fields)
     if not row:
         raise HTTPException(status_code=404, detail="Task not found")
     return TaskResponse(**row)
@@ -185,7 +205,11 @@ async def complete_task(id: str):
 
 @app.post("/contacts", response_model=ContactResponse, dependencies=[Depends(get_api_key)])
 async def create_contact(request: ContactCreate):
-    data = await db_module.create_contact(get_pool(), **request.model_dump())
+    data = await db_module.create_contact(
+        get_pool(),
+        embedding=_embed(request.name, request.notes),
+        **request.model_dump(),
+    )
     return ContactResponse(**data)
 
 
@@ -205,7 +229,16 @@ async def get_contact(id: str):
 
 @app.put("/contacts/{id}", response_model=ContactResponse, dependencies=[Depends(get_api_key)])
 async def update_contact(id: str, request: ContactUpdate):
-    row = await db_module.update_contact(get_pool(), id, **{k: v for k, v in request.model_dump().items() if v is not None})
+    fields = {k: v for k, v in request.model_dump().items() if v is not None}
+    embedding = None
+    if "name" in fields or "notes" in fields:
+        current = await db_module.get_contact(get_pool(), id)
+        if current:
+            embedding = _embed(
+                fields.get("name", current["name"]),
+                fields.get("notes", current["notes"]),
+            )
+    row = await db_module.update_contact(get_pool(), id, embedding=embedding, **fields)
     if not row:
         raise HTTPException(status_code=404, detail="Contact not found")
     return ContactResponse(**row)
@@ -221,7 +254,19 @@ async def delete_contact(id: str):
 
 @app.post("/contacts/{id}/interaction", response_model=ContactResponse, dependencies=[Depends(get_api_key)])
 async def log_interaction(id: str, request: ContactInteraction):
-    row = await db_module.log_interaction(get_pool(), id, request.note)
+    # Get current contact to build updated embedding text (name + accumulated notes)
+    current = await db_module.get_contact(get_pool(), id)
+    if not current:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    import datetime
+    timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    updated_notes = (
+        f"{current['notes']}\n\n{timestamp}: {request.note}"
+        if current["notes"]
+        else f"{timestamp}: {request.note}"
+    )
+    embedding = _embed(current["name"], updated_notes)
+    row = await db_module.log_interaction(get_pool(), id, request.note, embedding=embedding)
     if not row:
         raise HTTPException(status_code=404, detail="Contact not found")
     return ContactResponse(**row)
@@ -231,7 +276,11 @@ async def log_interaction(id: str, request: ContactInteraction):
 
 @app.post("/home", response_model=HomeItemResponse, dependencies=[Depends(get_api_key)])
 async def create_home_item(request: HomeItemCreate):
-    data = await db_module.create_home_item(get_pool(), **request.model_dump())
+    data = await db_module.create_home_item(
+        get_pool(),
+        embedding=_embed(request.name, request.notes),
+        **request.model_dump(),
+    )
     return HomeItemResponse(**data)
 
 
@@ -251,7 +300,16 @@ async def get_home_item(id: str):
 
 @app.put("/home/{id}", response_model=HomeItemResponse, dependencies=[Depends(get_api_key)])
 async def update_home_item(id: str, request: HomeItemUpdate):
-    row = await db_module.update_home_item(get_pool(), id, **{k: v for k, v in request.model_dump().items() if v is not None})
+    fields = {k: v for k, v in request.model_dump().items() if v is not None}
+    embedding = None
+    if "name" in fields or "notes" in fields:
+        current = await db_module.get_home_item(get_pool(), id)
+        if current:
+            embedding = _embed(
+                fields.get("name", current["name"]),
+                fields.get("notes", current["notes"]),
+            )
+    row = await db_module.update_home_item(get_pool(), id, embedding=embedding, **fields)
     if not row:
         raise HTTPException(status_code=404, detail="Home item not found")
     return HomeItemResponse(**row)

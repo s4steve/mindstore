@@ -2,6 +2,12 @@ import json
 import asyncpg
 
 
+def _vec(embedding: list[float] | None) -> str | None:
+    if embedding is None:
+        return None
+    return "[" + ",".join(str(v) for v in embedding) + "]"
+
+
 async def create_pool(database_url: str) -> asyncpg.Pool:
     return await asyncpg.create_pool(
         database_url,
@@ -188,18 +194,18 @@ def _row_to_task(r) -> dict:
     return d
 
 
-async def create_task(pool: asyncpg.Pool, **kwargs) -> dict:
+async def create_task(pool: asyncpg.Pool, embedding: list[float] | None = None, **kwargs) -> dict:
     row = await pool.fetchrow(
         """
-        INSERT INTO tasks (title, notes, status, priority, due_date, recurrence_days, category, tags)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO tasks (title, notes, status, priority, due_date, recurrence_days, category, tags, embedding)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::vector)
         RETURNING id::text, title, notes, status, priority, due_date,
                   recurrence_days, category, tags, created_at, updated_at
         """,
         kwargs["title"], kwargs.get("notes"), kwargs.get("status", "open"),
         kwargs.get("priority", "medium"), kwargs.get("due_date"),
         kwargs.get("recurrence_days"), kwargs.get("category", "general"),
-        kwargs.get("tags", []),
+        kwargs.get("tags", []), _vec(embedding),
     )
     return dict(row)
 
@@ -240,13 +246,17 @@ async def get_task(pool: asyncpg.Pool, id: str) -> dict | None:
     return dict(row) if row else None
 
 
-async def update_task(pool: asyncpg.Pool, id: str, **kwargs) -> dict | None:
+async def update_task(pool: asyncpg.Pool, id: str, embedding: list[float] | None = None, **kwargs) -> dict | None:
     sets, values, idx = [], [], 1
     for col in ("title", "notes", "status", "priority", "due_date", "recurrence_days", "category", "tags"):
         if col in kwargs and kwargs[col] is not None:
             sets.append(f"{col} = ${idx}")
             values.append(kwargs[col])
             idx += 1
+    if embedding is not None:
+        sets.append(f"embedding = ${idx}::vector")
+        values.append(_vec(embedding))
+        idx += 1
     if not sets:
         return await get_task(pool, id)
     values.append(id)
@@ -284,29 +294,33 @@ async def complete_task(pool: asyncpg.Pool, id: str) -> dict | None:
         if task.get("recurrence_days") and task.get("due_date"):
             import datetime
             new_due = task["due_date"] + datetime.timedelta(days=task["recurrence_days"])
+            # Fetch the embedding to carry it forward
+            emb_row = await conn.fetchrow("SELECT embedding::text FROM tasks WHERE id = $1::uuid", id)
             await conn.execute(
                 """
-                INSERT INTO tasks (title, notes, status, priority, due_date, recurrence_days, category, tags)
-                VALUES ($1, $2, 'open', $3, $4, $5, $6, $7)
+                INSERT INTO tasks (title, notes, status, priority, due_date, recurrence_days, category, tags, embedding)
+                VALUES ($1, $2, 'open', $3, $4, $5, $6, $7, $8::vector)
                 """,
                 task["title"], task["notes"], task["priority"],
                 new_due, task["recurrence_days"], task["category"], task["tags"],
+                emb_row["embedding"] if emb_row else None,
             )
         return task
 
 
 # ── Contact helpers ───────────────────────────────────────────────────────────
 
-async def create_contact(pool: asyncpg.Pool, **kwargs) -> dict:
+async def create_contact(pool: asyncpg.Pool, embedding: list[float] | None = None, **kwargs) -> dict:
     row = await pool.fetchrow(
         """
-        INSERT INTO contacts (name, email, phone, company, notes, tags)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO contacts (name, email, phone, company, notes, tags, embedding)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::vector)
         RETURNING id::text, name, email, phone, company, last_contact_at,
                   notes, tags, created_at, updated_at
         """,
         kwargs["name"], kwargs.get("email"), kwargs.get("phone"),
         kwargs.get("company"), kwargs.get("notes"), kwargs.get("tags", []),
+        _vec(embedding),
     )
     return dict(row)
 
@@ -339,13 +353,17 @@ async def get_contact(pool: asyncpg.Pool, id: str) -> dict | None:
     return dict(row) if row else None
 
 
-async def update_contact(pool: asyncpg.Pool, id: str, **kwargs) -> dict | None:
+async def update_contact(pool: asyncpg.Pool, id: str, embedding: list[float] | None = None, **kwargs) -> dict | None:
     sets, values, idx = [], [], 1
     for col in ("name", "email", "phone", "company", "notes", "tags"):
         if col in kwargs and kwargs[col] is not None:
             sets.append(f"{col} = ${idx}")
             values.append(kwargs[col])
             idx += 1
+    if embedding is not None:
+        sets.append(f"embedding = ${idx}::vector")
+        values.append(_vec(embedding))
+        idx += 1
     if not sets:
         return await get_contact(pool, id)
     values.append(id)
@@ -366,7 +384,7 @@ async def delete_contact(pool: asyncpg.Pool, id: str) -> bool:
     return result == "DELETE 1"
 
 
-async def log_interaction(pool: asyncpg.Pool, id: str, note: str) -> dict | None:
+async def log_interaction(pool: asyncpg.Pool, id: str, note: str, embedding: list[float] | None = None) -> dict | None:
     import datetime
     timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     row = await pool.fetchrow(
@@ -376,28 +394,29 @@ async def log_interaction(pool: asyncpg.Pool, id: str, note: str) -> dict | None
             notes = CASE
                 WHEN notes IS NULL OR notes = '' THEN $2 || ': ' || $3
                 ELSE notes || E'\n\n' || $2 || ': ' || $3
-            END
+            END,
+            embedding = COALESCE($4::vector, embedding)
         WHERE id = $1::uuid
         RETURNING id::text, name, email, phone, company, last_contact_at,
                   notes, tags, created_at, updated_at
         """,
-        id, timestamp, note,
+        id, timestamp, note, _vec(embedding),
     )
     return dict(row) if row else None
 
 
 # ── Home item helpers ─────────────────────────────────────────────────────────
 
-async def create_home_item(pool: asyncpg.Pool, **kwargs) -> dict:
+async def create_home_item(pool: asyncpg.Pool, embedding: list[float] | None = None, **kwargs) -> dict:
     row = await pool.fetchrow(
         """
-        INSERT INTO home_items (name, notes, interval_days, next_due_at, tags)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO home_items (name, notes, interval_days, next_due_at, tags, embedding)
+        VALUES ($1, $2, $3, $4, $5, $6::vector)
         RETURNING id::text, name, notes, last_done_at, next_due_at,
                   interval_days, tags, created_at, updated_at
         """,
         kwargs["name"], kwargs.get("notes"), kwargs.get("interval_days"),
-        kwargs.get("next_due_at"), kwargs.get("tags", []),
+        kwargs.get("next_due_at"), kwargs.get("tags", []), _vec(embedding),
     )
     return dict(row)
 
@@ -428,13 +447,17 @@ async def get_home_item(pool: asyncpg.Pool, id: str) -> dict | None:
     return dict(row) if row else None
 
 
-async def update_home_item(pool: asyncpg.Pool, id: str, **kwargs) -> dict | None:
+async def update_home_item(pool: asyncpg.Pool, id: str, embedding: list[float] | None = None, **kwargs) -> dict | None:
     sets, values, idx = [], [], 1
     for col in ("name", "notes", "interval_days", "next_due_at", "tags"):
         if col in kwargs and kwargs[col] is not None:
             sets.append(f"{col} = ${idx}")
             values.append(kwargs[col])
             idx += 1
+    if embedding is not None:
+        sets.append(f"embedding = ${idx}::vector")
+        values.append(_vec(embedding))
+        idx += 1
     if not sets:
         return await get_home_item(pool, id)
     values.append(id)
@@ -471,6 +494,85 @@ async def complete_home_item(pool: asyncpg.Pool, id: str) -> dict | None:
         id,
     )
     return dict(row) if row else None
+
+
+# ── Cross-table semantic search ───────────────────────────────────────────────
+
+async def cross_table_search(
+    pool: asyncpg.Pool,
+    embedding: list[float],
+    limit: int = 10,
+    content_type: str | None = None,
+) -> list[dict]:
+    """Semantic search across thoughts, tasks, contacts, and home_items."""
+    vector_str = _vec(embedding)
+    rows = await pool.fetch(
+        """
+        WITH combined AS (
+            SELECT
+                id::text,
+                content,
+                title,
+                tags,
+                content_type,
+                created_at,
+                1 - (embedding <=> $1::vector) AS similarity
+            FROM thoughts
+            WHERE parent_id IS NULL AND embedding IS NOT NULL
+
+            UNION ALL
+
+            SELECT
+                id::text,
+                CASE WHEN notes IS NOT NULL THEN title || E'\n' || notes ELSE title END,
+                title,
+                tags,
+                'task'::text,
+                created_at,
+                1 - (embedding <=> $1::vector)
+            FROM tasks
+            WHERE embedding IS NOT NULL
+
+            UNION ALL
+
+            SELECT
+                id::text,
+                CASE WHEN notes IS NOT NULL THEN name || E'\n' || notes ELSE name END,
+                name,
+                tags,
+                'contact'::text,
+                created_at,
+                1 - (embedding <=> $1::vector)
+            FROM contacts
+            WHERE embedding IS NOT NULL
+
+            UNION ALL
+
+            SELECT
+                id::text,
+                CASE WHEN notes IS NOT NULL THEN name || E'\n' || notes ELSE name END,
+                name,
+                tags,
+                'home_item'::text,
+                created_at,
+                1 - (embedding <=> $1::vector)
+            FROM home_items
+            WHERE embedding IS NOT NULL
+        )
+        SELECT id, content, title, tags, content_type, created_at, similarity
+        FROM combined
+        WHERE ($2::text IS NULL OR content_type = $2)
+        ORDER BY similarity DESC
+        LIMIT $3
+        """,
+        vector_str,
+        content_type,
+        limit,
+    )
+    return [
+        {**dict(r), "created_at": r["created_at"].isoformat(), "similarity": float(r["similarity"])}
+        for r in rows
+    ]
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────

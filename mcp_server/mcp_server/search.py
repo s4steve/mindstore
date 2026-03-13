@@ -11,19 +11,61 @@ async def semantic_search(
     vector_str = "[" + ",".join(str(v) for v in embedding) + "]"
     rows = await pool.fetch(
         """
-        SELECT
-            id::text,
-            content,
-            title,
-            tags,
-            content_type,
-            source,
-            created_at,
-            1 - (embedding <=> $1::vector) AS similarity
-        FROM thoughts
+        WITH combined AS (
+            SELECT
+                id::text,
+                content,
+                title,
+                tags,
+                content_type,
+                created_at,
+                1 - (embedding <=> $1::vector) AS similarity
+            FROM thoughts
+            WHERE parent_id IS NULL AND embedding IS NOT NULL
+
+            UNION ALL
+
+            SELECT
+                id::text,
+                CASE WHEN notes IS NOT NULL THEN title || E'\n' || notes ELSE title END,
+                title,
+                tags,
+                'task'::text,
+                created_at,
+                1 - (embedding <=> $1::vector)
+            FROM tasks
+            WHERE embedding IS NOT NULL
+
+            UNION ALL
+
+            SELECT
+                id::text,
+                CASE WHEN notes IS NOT NULL THEN name || E'\n' || notes ELSE name END,
+                name,
+                tags,
+                'contact'::text,
+                created_at,
+                1 - (embedding <=> $1::vector)
+            FROM contacts
+            WHERE embedding IS NOT NULL
+
+            UNION ALL
+
+            SELECT
+                id::text,
+                CASE WHEN notes IS NOT NULL THEN name || E'\n' || notes ELSE name END,
+                name,
+                tags,
+                'home_item'::text,
+                created_at,
+                1 - (embedding <=> $1::vector)
+            FROM home_items
+            WHERE embedding IS NOT NULL
+        )
+        SELECT id, content, title, tags, content_type, created_at, similarity
+        FROM combined
         WHERE ($2::text IS NULL OR content_type = $2)
-          AND parent_id IS NULL
-        ORDER BY embedding <=> $1::vector
+        ORDER BY similarity DESC
         LIMIT $3
         """,
         vector_str,

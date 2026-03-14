@@ -7,13 +7,9 @@ COPY tasks.html .
 COPY contacts.html .
 COPY home.html .
 
-# Remove default nginx config; ours is generated at startup
+# Remove default nginx config; ours is injected at startup via envsubst
 RUN rm /etc/nginx/conf.d/default.conf
-
-# Copy nginx config templates (picked at startup based on cert presence)
-RUN mkdir -p /etc/nginx/conf-templates
-COPY nginx-https.conf.tmpl /etc/nginx/conf-templates/
-COPY nginx-http.conf.tmpl  /etc/nginx/conf-templates/
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
 # openssl is needed by the htpasswd generation script
 RUN apk add --no-cache openssl
@@ -22,8 +18,5 @@ RUN apk add --no-cache openssl
 COPY 10-generate-htpasswd.sh /docker-entrypoint.d/10-generate-htpasswd.sh
 RUN chmod +x /docker-entrypoint.d/10-generate-htpasswd.sh
 
-# Generate nginx config (HTTPS or HTTP) based on cert availability
-COPY 25-generate-nginx-config.sh /docker-entrypoint.d/25-generate-nginx-config.sh
-RUN chmod +x /docker-entrypoint.d/25-generate-nginx-config.sh
-
+# nginx docker image processes /etc/nginx/templates/*.template via envsubst on start
 EXPOSE 3000

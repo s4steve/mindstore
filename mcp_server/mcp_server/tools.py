@@ -121,26 +121,6 @@ def register_tools(mcp: FastMCP) -> None:
             payload["metadata"] = metadata
         return await _call_ingestion("PUT", f"/thoughts/{id}", payload)
 
-
-async def _call_ingest(
-    content: str,
-    content_type: str,
-    title: str | None = None,
-    tags: list[str] | None = None,
-    metadata: dict | None = None,
-) -> dict:
-    payload = {
-        "content": content,
-        "content_type": content_type,
-        "source": "mcp",
-        "tags": tags or [],
-        "metadata": metadata or {},
-    }
-    if title:
-        payload["title"] = title
-    return await _call_ingestion("POST", "/ingest", payload)
-
-
     # ── Tasks ──────────────────────────────────────────────────────────────────
 
     @mcp.tool()
@@ -281,6 +261,25 @@ async def _call_ingest(
     async def get_dashboard() -> dict:
         """Get a dashboard summary: overdue/due-soon tasks, overdue/due-soon home items, contacts to reach out to."""
         return await _call_ingestion("GET", "/dashboard")
+
+
+async def _call_ingest(
+    content: str,
+    content_type: str,
+    title: str | None = None,
+    tags: list[str] | None = None,
+    metadata: dict | None = None,
+) -> dict:
+    payload = {
+        "content": content,
+        "content_type": content_type,
+        "source": "mcp",
+        "tags": tags or [],
+        "metadata": metadata or {},
+    }
+    if title:
+        payload["title"] = title
+    return await _call_ingestion("POST", "/ingest", payload)
 
 
 async def _call_ingestion(method: str, path: str, payload: dict | None = None) -> dict:

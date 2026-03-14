@@ -5,636 +5,331 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mindstore</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:         #f5f4f0;
-      --bg-1:       #ffffff;
-      --bg-2:       #edecea;
-      --border:     #d8d6ce;
-      --border-2:   #e6e4dc;
-      --text:       #1a1918;
-      --text-dim:   #6b6966;
-      --text-dimmer:#b5b2ac;
-      --accent:     #2563eb;
-      --accent-dim: #1d4ed8;
-      --green:      #16a34a;
-      --red:        #dc2626;
-      --font:       'JetBrains Mono', monospace;
+      --bg:         #f0f5f8;
+      --bg-card:    #ffffff;
+      --bg-raised:  #e6edf3;
+      --bg-hover:   #dde7ef;
+      --border:     #c4d4e0;
+      --border-sub: #d8e5ee;
+      --text:       #0f2130;
+      --text-2:     #3d6a82;
+      --text-3:     #8aafc4;
+      --teal:       #0aa898;
+      --teal-dim:   #088a7c;
+      --teal-glow:  rgba(10,168,152,0.15);
+      --teal-bg:    rgba(10,168,152,0.08);
+      --green:      #1aaa60;
+      --green-dim:  #158a4e;
+      --green-glow: rgba(26,170,96,0.14);
+      --blue:       #2a7db8;
+      --red:        #cc3a3a;
+      --yellow:     #a06818;
+      --display:    'Playfair Display', serif;
+      --mono:       'IBM Plex Mono', monospace;
     }
 
     html, body {
       height: 100%;
-      background: var(--bg);
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(ellipse at 50% 0%, rgba(10,168,152,0.05) 0%, transparent 55%),
+        radial-gradient(ellipse at 90% 90%, rgba(42,125,184,0.04) 0%, transparent 45%);
+      background-attachment: fixed;
       color: var(--text);
-      font-family: var(--font);
+      font-family: var(--mono);
       font-size: 13px;
-      line-height: 1.6;
+      line-height: 1.65;
       -webkit-font-smoothing: antialiased;
     }
+    body { display: flex; flex-direction: column; min-height: 100vh; }
 
-    body {
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
-
-    /* ── Progress flash ─────────────────────────────── */
+    /* Flash */
     #flash {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      background: var(--accent);
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform 0.25s ease, opacity 0.3s ease;
-      z-index: 100;
+      position: fixed; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--teal), var(--green), transparent);
+      transform: scaleX(0); transform-origin: left;
+      transition: transform 0.3s ease, opacity 0.3s ease; z-index: 9999;
     }
     #flash.active { transform: scaleX(1); }
     #flash.fade   { opacity: 0; }
 
-    /* ── Toast ─────────────────────────────────────── */
+    /* Toast */
     #toast {
-      position: fixed;
-      bottom: 20px; right: 20px;
-      background: var(--bg-1);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--green);
-      padding: 9px 14px;
-      font-size: 11px;
-      color: var(--green);
-      letter-spacing: 0.04em;
-      opacity: 0;
-      transform: translateY(6px);
-      transition: opacity 0.18s, transform 0.18s;
-      pointer-events: none;
-      z-index: 99;
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-left: 2px solid var(--green);
+      padding: 10px 18px; font-size: 11px; color: var(--green);
+      letter-spacing: 0.04em; opacity: 0; transform: translateY(8px);
+      transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 9999;
     }
     #toast.error { border-left-color: var(--red); color: var(--red); }
     #toast.show  { opacity: 1; transform: translateY(0); }
 
-    /* ── Header ────────────────────────────────────── */
+    /* Header */
     header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 28px;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg-1);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 40px; border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
+    .wordmark {
+      font-family: var(--display); font-size: 26px; font-weight: 400;
+      color: var(--text); letter-spacing: 0.02em;
+    }
+    .wordmark em { font-style: italic; color: var(--teal); }
+    .header-right {
+      display: flex; align-items: center; gap: 24px;
+      font-size: 10px; color: var(--text-3); letter-spacing: 0.07em;
+    }
+    .status-dot {
+      display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+      background: var(--text-3); margin-right: 6px;
+      transition: background 0.4s, box-shadow 0.4s; vertical-align: middle;
+    }
+    .status-dot.on  { background: var(--green); box-shadow: 0 0 6px var(--green-glow); }
+    .status-dot.err { background: var(--red); }
 
-    .logo {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.18em;
-      color: var(--accent);
-      text-transform: uppercase;
-    }
-    .logo em {
-      color: var(--text-dim);
-      font-style: normal;
-      font-weight: 300;
-    }
+    /* Main */
+    main { flex: 1; max-width: 760px; width: 100%; margin: 0 auto; padding: 52px 40px 48px; }
 
-    .header-meta {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      font-size: 10px;
-      color: var(--text-dim);
-      letter-spacing: 0.06em;
+    /* Section label */
+    .section-label {
+      display: flex; align-items: center; gap: 14px;
+      font-family: var(--display); font-size: 14px; font-style: italic;
+      font-weight: 400; color: var(--text-2); margin-bottom: 18px;
     }
+    .section-label::before {
+      content: ''; display: block; width: 30px; height: 1px;
+      background: var(--teal); flex-shrink: 0;
+    }
+    #typeLabel { color: var(--teal); font-style: normal; transition: color 0.2s; }
+    #typeLabel.is-note { color: var(--green); }
 
-    .dot {
-      display: inline-block;
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--text-dimmer);
-      margin-right: 6px;
-      transition: background 0.4s;
-      vertical-align: middle;
+    /* Textarea */
+    #thought {
+      width: 100%; min-height: 196px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-top: 2px solid var(--teal);
+      color: var(--text); font-family: var(--mono); font-size: 14px;
+      font-weight: 300; line-height: 1.9; padding: 22px 26px;
+      resize: vertical; outline: none; caret-color: var(--teal);
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
     }
-    .dot.on  { background: var(--green); }
-    .dot.err { background: var(--red); }
-
-    /* ── Main ──────────────────────────────────────── */
-    main {
-      flex: 1;
-      max-width: 760px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 44px 28px 36px;
-    }
-
-    /* ── Capture block ─────────────────────────────── */
-    .label {
-      font-size: 10px;
-      letter-spacing: 0.14em;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-    }
-    .label::before {
-      content: '▸';
-      color: var(--accent);
-      font-size: 11px;
+    #thought::placeholder { color: var(--text-3); font-style: italic; }
+    #thought:focus {
+      background: var(--bg-raised); border-color: var(--border);
+      border-top-color: var(--teal);
+      box-shadow: 0 0 0 3px var(--teal-glow), 0 4px 24px rgba(0,0,0,0.3);
     }
 
-    #typeLabel {
-      color: var(--accent);
-      transition: color 0.2s;
+    /* Capture meta row */
+    .capture-meta {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-top: 12px; gap: 16px;
     }
-    #typeLabel.is-note {
-      color: var(--green);
-    }
-
-    textarea {
-      width: 100%;
-      min-height: 180px;
-      background: var(--bg-1);
-      border: 1px solid var(--border);
-      border-left: 2px solid var(--accent);
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 14px;
-      font-weight: 300;
-      line-height: 1.85;
-      padding: 18px 22px;
-      resize: vertical;
-      outline: none;
-      transition: border-color 0.15s, background 0.15s;
-      caret-color: var(--accent);
-    }
-    textarea::placeholder {
-      color: var(--text-dimmer);
-      font-style: italic;
-    }
-    textarea:focus {
-      background: var(--bg-2);
-      border-color: var(--accent-dim);
-      border-left-color: var(--accent);
-    }
-
-    /* ── Tags ──────────────────────────────────────── */
-    .tags-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      margin-top: 10px;
-      min-height: 32px;
-    }
-
-    .tags-prefix {
-      font-size: 10px;
-      color: var(--text-dimmer);
-      letter-spacing: 0.06em;
-      padding-top: 7px;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .tags-inner {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 5px;
-      flex: 1;
-      cursor: text;
-    }
-
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      background: var(--bg-2);
-      border: 1px solid var(--border);
-      color: var(--accent);
-      font-family: var(--font);
-      font-size: 10px;
-      padding: 2px 7px;
-      letter-spacing: 0.04em;
-      animation: chipIn 0.12s ease;
-    }
-    @keyframes chipIn {
-      from { opacity: 0; transform: scale(0.88); }
-      to   { opacity: 1; transform: scale(1); }
-    }
-    .chip-rm {
-      background: none;
-      border: none;
-      color: var(--text-dim);
-      font-size: 11px;
-      cursor: pointer;
-      padding: 0;
-      line-height: 1;
-      display: flex;
-      align-items: center;
-    }
-    .chip-rm:hover { color: var(--red); }
-
-    #tagInput {
-      background: none;
-      border: none;
-      outline: none;
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 11px;
-      min-width: 140px;
-      caret-color: var(--accent);
-    }
-    #tagInput::placeholder { color: var(--text-dimmer); }
-
-    /* ── Actions ───────────────────────────────────── */
-    .actions {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 18px;
-    }
-
-    .hint {
-      font-size: 10px;
-      color: var(--text-dimmer);
-      letter-spacing: 0.04em;
-    }
-    .hint kbd {
-      display: inline-block;
-      padding: 2px 5px;
-      border: 1px solid var(--border);
-      background: var(--bg-1);
-      color: var(--text-dim);
-      font-family: var(--font);
-      font-size: 9px;
-    }
-
-    #captureBtn {
-      background: var(--accent);
-      color: #000;
-      border: none;
-      font-family: var(--font);
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      padding: 10px 26px;
-      cursor: pointer;
-      transition: background 0.12s, transform 0.08s;
-    }
-    #captureBtn:hover:not(:disabled) { background: var(--accent-dim); }
-    #captureBtn:active:not(:disabled) { transform: scale(0.97); }
-    #captureBtn:disabled {
-      background: var(--text-dimmer);
-      color: #000;
-      cursor: not-allowed;
-    }
-
-    /* ── Char counter ──────────────────────────────── */
-    .char-counter-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 5px;
-    }
-
     .char-counter {
-      font-size: 10px;
-      color: var(--text-dimmer);
-      letter-spacing: 0.04em;
+      font-size: 10px; color: var(--text-3); letter-spacing: 0.04em;
+      padding-top: 6px; white-space: nowrap; flex-shrink: 0;
       transition: color 0.2s;
     }
     .char-counter.warn { color: var(--red); }
 
-    .upload-area {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    /* Tags */
+    .tags-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      flex: 1; min-height: 30px;
     }
+    .tags-prefix {
+      font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;
+      padding-top: 5px; white-space: nowrap; flex-shrink: 0;
+    }
+    .tags-inner {
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 5px; flex: 1; cursor: text;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--teal-bg); border: 1px solid rgba(15,191,166,0.25);
+      color: var(--teal); font-family: var(--mono); font-size: 10px;
+      padding: 3px 10px; border-radius: 100px; letter-spacing: 0.04em;
+      animation: chipIn 0.12s ease;
+    }
+    @keyframes chipIn { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:scale(1); } }
+    .chip-rm {
+      background: none; border: none; color: rgba(15,191,166,0.4);
+      font-size: 11px; cursor: pointer; padding: 0; line-height: 1;
+      display: flex; align-items: center; transition: color 0.12s;
+    }
+    .chip-rm:hover { color: var(--red); }
+    #tagInput {
+      background: none; border: none; outline: none;
+      color: var(--text); font-family: var(--mono); font-size: 11px;
+      min-width: 140px; caret-color: var(--teal);
+    }
+    #tagInput::placeholder { color: var(--text-3); }
 
+    /* Upload */
+    .upload-area { display: flex; align-items: center; gap: 8px; margin-top: 10px; justify-content: flex-end; }
     #uploadBtn {
-      background: transparent;
-      border: 1px solid var(--accent);
-      color: var(--accent);
-      font-family: var(--font);
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      padding: 8px 18px;
-      cursor: pointer;
-      transition: background 0.12s, color 0.12s;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-3); font-family: var(--mono); font-size: 10px;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 5px 14px; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
     }
-    #uploadBtn:hover { background: var(--accent); color: #fff; }
-
+    #uploadBtn:hover { border-color: var(--teal); color: var(--teal); }
     .file-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      background: var(--bg-2);
-      border: 1px solid var(--border);
-      color: var(--green);
-      font-size: 10px;
-      letter-spacing: 0.04em;
-      padding: 2px 7px;
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--teal-bg); border: 1px solid rgba(15,191,166,0.25);
+      color: var(--teal); font-size: 10px; padding: 3px 10px; border-radius: 100px;
     }
-
     #clearFile {
-      background: none;
-      border: none;
-      color: var(--text-dim);
-      font-size: 11px;
-      cursor: pointer;
-      padding: 0;
-      line-height: 1;
+      background: none; border: none; color: rgba(15,191,166,0.4);
+      font-size: 11px; cursor: pointer; padding: 0; line-height: 1;
+      transition: color 0.12s;
     }
     #clearFile:hover { color: var(--red); }
 
-    /* ── Divider ───────────────────────────────────── */
+    /* Actions */
+    .actions {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 18px;
+    }
+    .hint { font-size: 10px; color: var(--text-3); letter-spacing: 0.04em; }
+    .hint kbd {
+      display: inline-block; padding: 2px 6px;
+      border: 1px solid var(--border); background: var(--bg-card);
+      color: var(--text-2); font-family: var(--mono); font-size: 9px; border-radius: 3px;
+    }
+    #captureBtn {
+      background: var(--teal); color: var(--bg); border: none;
+      font-family: var(--mono); font-size: 11px; font-weight: 500;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      padding: 11px 30px; cursor: pointer;
+      transition: background 0.15s, box-shadow 0.15s, transform 0.08s;
+    }
+    #captureBtn:hover:not(:disabled) {
+      background: var(--teal-dim); box-shadow: 0 0 28px var(--teal-glow);
+    }
+    #captureBtn:active:not(:disabled) { transform: scale(0.97); }
+    #captureBtn:disabled { background: var(--text-3); color: var(--bg); cursor: not-allowed; }
+
+    /* Divider */
     .divider {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 40px 0 18px;
+      display: flex; align-items: center; gap: 14px; margin: 52px 0 22px;
     }
     .divider span {
-      font-size: 10px;
-      letter-spacing: 0.14em;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      white-space: nowrap;
+      font-family: var(--display); font-size: 14px; font-style: italic;
+      color: var(--text-2); white-space: nowrap;
     }
-    .divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
+    .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-    /* ── Recent list ───────────────────────────────── */
-    #recentList {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .r-item {
-      display: grid;
-      grid-template-columns: 68px 1fr;
-      gap: 16px;
-      padding: 11px 0;
-      border-bottom: 1px solid var(--border-2);
-      align-items: start;
-      animation: itemIn 0.2s ease both;
-    }
-    @keyframes itemIn {
-      from { opacity: 0; transform: translateY(5px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    .r-time {
-      font-size: 9px;
-      color: var(--text-dimmer);
-      letter-spacing: 0.04em;
-      padding-top: 2px;
-      text-align: right;
-    }
-
-    .r-content {
-      font-size: 12px;
-      font-weight: 300;
-      color: var(--text-dim);
-      line-height: 1.65;
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-    }
-
-    .r-tags {
-      display: flex;
-      gap: 6px;
-      margin-top: 4px;
-      flex-wrap: wrap;
-    }
-    .r-tag {
-      font-size: 9px;
-      color: var(--accent-dim);
-      letter-spacing: 0.04em;
-    }
-    .r-tag::before { content: '#'; }
-
-    .r-empty {
-      font-size: 11px;
-      color: var(--text-dimmer);
-      font-style: italic;
-      padding: 14px 0;
-    }
-
-    /* ── Footer ────────────────────────────────────── */
-    footer {
-      padding: 11px 28px;
-      border-top: 1px solid var(--border);
-      background: var(--bg-1);
-      font-size: 10px;
-      color: var(--text-dimmer);
-      letter-spacing: 0.05em;
-      display: flex;
-      justify-content: space-between;
-      flex-shrink: 0;
-    }
-
-    /* ── Search ────────────────────────────────────── */
-    .search-row {
-      display: flex;
-      gap: 10px;
-    }
-
+    /* Search */
+    .search-row { display: flex; gap: 0; }
     #searchInput {
-      flex: 1;
-      background: var(--bg-1);
-      border: 1px solid var(--border);
-      border-left: 2px solid var(--border);
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 13px;
-      font-weight: 300;
-      padding: 10px 16px;
-      outline: none;
-      transition: border-color 0.15s, background 0.15s;
-      caret-color: var(--accent);
+      flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+      border-right: none; color: var(--text); font-family: var(--mono);
+      font-size: 13px; font-weight: 300; padding: 12px 18px;
+      outline: none; caret-color: var(--teal);
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
     }
-    #searchInput::placeholder {
-      color: var(--text-dimmer);
-      font-style: italic;
-    }
+    #searchInput::placeholder { color: var(--text-3); font-style: italic; }
     #searchInput:focus {
-      background: var(--bg-2);
-      border-color: var(--border);
-      border-left-color: var(--accent);
+      background: var(--bg-raised); border-color: var(--teal);
+      border-right: none; box-shadow: -3px 0 0 var(--teal-glow) inset;
     }
-
     #searchBtn {
-      background: var(--bg-2);
-      color: var(--text-dim);
-      border: 1px solid var(--border);
-      font-family: var(--font);
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      padding: 10px 20px;
-      cursor: pointer;
-      transition: color 0.12s, border-color 0.12s;
+      background: var(--bg-raised); color: var(--text-2);
+      border: 1px solid var(--border); font-family: var(--mono);
+      font-size: 11px; font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; padding: 12px 22px;
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
     }
-    #searchBtn:hover:not(:disabled) { color: var(--text); border-color: var(--accent-dim); }
-    #searchBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #searchBtn:hover:not(:disabled) { color: var(--teal); border-color: var(--teal); }
+    #searchBtn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+    /* Results */
+    #searchResults { margin-top: 4px; }
     .s-item {
-      display: grid;
-      grid-template-columns: 44px 1fr;
-      gap: 16px;
-      padding: 11px 0;
-      border-bottom: 1px solid var(--border-2);
-      align-items: start;
-      animation: itemIn 0.2s ease both;
+      display: grid; grid-template-columns: 40px 1fr;
+      gap: 18px; padding: 14px 0;
+      border-bottom: 1px solid var(--border-sub);
+      align-items: start; cursor: pointer;
+      animation: slideIn 0.2s ease both;
+      transition: background 0.12s;
     }
+    .s-item:hover { background: var(--bg-card); margin: 0 -14px; padding-left: 14px; padding-right: 14px; }
+    @keyframes slideIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+    .s-sim { font-size: 11px; color: var(--teal); text-align: right; padding-top: 2px; letter-spacing: 0.02em; }
+    .s-meta { display: flex; gap: 10px; align-items: baseline; margin-bottom: 4px; }
+    .s-type { font-size: 9px; color: var(--text-3); letter-spacing: 0.12em; text-transform: uppercase; }
+    .s-empty { font-size: 11px; color: var(--text-3); font-style: italic; padding: 14px 0; }
 
-    .s-sim {
-      font-size: 10px;
-      letter-spacing: 0.02em;
-      color: var(--accent);
-      text-align: right;
-      padding-top: 2px;
+    /* Recent */
+    .r-item {
+      display: grid; grid-template-columns: 52px 1fr;
+      gap: 18px; padding: 14px 0;
+      border-bottom: 1px solid var(--border-sub);
+      align-items: start; animation: slideIn 0.2s ease both;
     }
+    .r-time { font-size: 9px; color: var(--text-3); letter-spacing: 0.04em; padding-top: 2px; text-align: right; }
+    .r-content {
+      font-size: 12px; font-weight: 300; color: var(--text-2); line-height: 1.7;
+      overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .r-tags { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+    .r-tag { font-size: 9px; color: var(--text-3); letter-spacing: 0.04em; }
+    .r-tag::before { content: '#'; color: var(--teal); margin-right: 1px; }
+    .r-empty { font-size: 11px; color: var(--text-3); font-style: italic; padding: 14px 0; }
 
-    .s-meta {
-      display: flex;
-      gap: 8px;
-      align-items: baseline;
-      margin-bottom: 3px;
-    }
-
-    .s-type {
-      font-size: 9px;
-      color: var(--text-dimmer);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-
-    .s-empty {
-      font-size: 11px;
-      color: var(--text-dimmer);
-      font-style: italic;
-      padding: 14px 0;
-    }
-
-    /* ── Search result clickable ───────────────────── */
-    .s-item {
-      cursor: pointer;
-    }
-    .s-item:hover {
-      background: var(--bg-2);
-      margin: 0 -10px;
-      padding-left: 10px;
-      padding-right: 10px;
-    }
-
-    /* ── Modal ──────────────────────────────────────── */
+    /* Modal */
     #modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.35);
-      z-index: 200;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.15s;
+      position: fixed; inset: 0; background: rgba(4,12,22,0.75);
+      z-index: 200; display: flex; align-items: center; justify-content: center;
+      padding: 24px; opacity: 0; pointer-events: none;
+      transition: opacity 0.18s; backdrop-filter: blur(4px);
     }
-    #modal-overlay.open {
-      opacity: 1;
-      pointer-events: all;
-    }
+    #modal-overlay.open { opacity: 1; pointer-events: all; }
     #modal {
-      background: var(--bg-1);
-      border: 1px solid var(--border);
-      max-width: 660px;
-      width: 100%;
-      max-height: 82vh;
-      display: flex;
-      flex-direction: column;
-      transform: translateY(10px);
-      transition: transform 0.15s;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-top: 2px solid var(--teal);
+      max-width: 680px; width: 100%; max-height: 80vh;
+      display: flex; flex-direction: column;
+      transform: translateY(10px); transition: transform 0.18s;
     }
-    #modal-overlay.open #modal {
-      transform: translateY(0);
-    }
+    #modal-overlay.open #modal { transform: translateY(0); }
     .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 13px 20px;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
-    .modal-meta {
-      display: flex;
-      gap: 10px;
-      align-items: baseline;
-      font-size: 10px;
-      color: var(--text-dimmer);
-      letter-spacing: 0.06em;
-    }
-    .modal-type {
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
+    .modal-meta { display: flex; gap: 12px; align-items: baseline; font-size: 10px; color: var(--text-3); letter-spacing: 0.06em; }
+    .modal-type { text-transform: uppercase; letter-spacing: 0.12em; color: var(--teal); }
     #modal-close {
-      background: none;
-      border: none;
-      color: var(--text-dim);
-      font-size: 18px;
-      line-height: 1;
-      cursor: pointer;
-      padding: 0;
+      background: none; border: none; color: var(--text-3); font-size: 16px;
+      cursor: pointer; padding: 0; transition: color 0.12s;
     }
     #modal-close:hover { color: var(--red); }
-    .modal-body {
-      padding: 22px 24px;
-      overflow-y: auto;
-      flex: 1;
-    }
-    #modal-content {
-      font-size: 13px;
-      font-weight: 300;
-      line-height: 1.85;
-      color: var(--text);
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .modal-tags {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-top: 18px;
-      padding-top: 14px;
-      border-top: 1px solid var(--border-2);
+    .modal-body { padding: 24px 28px; overflow-y: auto; flex: 1; }
+    #modal-content { font-size: 13px; font-weight: 300; line-height: 1.9; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+    .modal-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-sub); }
+
+    /* Footer */
+    footer {
+      padding: 12px 40px; border-top: 1px solid var(--border);
+      font-size: 10px; color: var(--text-3); letter-spacing: 0.07em;
+      display: flex; justify-content: space-between; flex-shrink: 0;
     }
 
-    /* ── Scrollbar ─────────────────────────────────── */
-    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border); }
   </style>
 </head>
 <body>
-
 <div id="flash"></div>
 <div id="toast"></div>
 
@@ -646,7 +341,7 @@
         <span id="modal-time"></span>
         <span id="modal-sim"></span>
       </div>
-      <button id="modal-close" aria-label="close">✕</button>
+      <button id="modal-close" aria-label="close">&#x2715;</button>
     </div>
     <div class="modal-body">
       <div id="modal-content"></div>
@@ -656,282 +351,187 @@
 </div>
 
 <header>
-  <div class="logo">MIND<em>STORE</em></div>
-  <div class="header-meta">
-    <span><span class="dot" id="dot"></span><span id="connStatus">connecting…</span></span>
+  <div class="wordmark">Mind<em>store</em></div>
+  <div class="header-right">
+    <span>
+      <span class="status-dot" id="dot"></span>
+      <span id="connStatus">connecting</span>
+    </span>
     <span id="clock"></span>
   </div>
 </header>
 
 <main>
-  <div class="label">capture <span id="typeLabel">thought</span></div>
+  <div class="section-label">Capture <span id="typeLabel">thought</span></div>
 
-  <textarea
-    id="thought"
-    placeholder="What's on your mind…"
-    autofocus
-    spellcheck="false"
-    maxlength="50000"
-  ></textarea>
+  <textarea id="thought" placeholder="What's on your mind&#x2026;" autofocus spellcheck="false" maxlength="50000"></textarea>
 
-  <div class="char-counter-row">
-    <div class="char-counter" id="charCount">0 / 50,000</div>
-    <div class="upload-area">
-      <span id="fileBadge" class="file-badge" style="display:none">
-        <span id="fileName"></span>
-        <button id="clearFile" title="clear">✕</button>
-      </span>
-      <button id="uploadBtn">↑ upload .txt</button>
-      <input id="fileInput" type="file" accept=".txt,text/plain" style="display:none">
+  <div class="capture-meta">
+    <div class="tags-row">
+      <span class="tags-prefix">tags</span>
+      <div class="tags-inner" id="tagsInner">
+        <input id="tagInput" type="text" placeholder="add tag, enter or comma" autocomplete="off" spellcheck="false">
+      </div>
     </div>
+    <span class="char-counter" id="charCount">0 / 50k</span>
   </div>
 
-  <div class="tags-row">
-    <span class="tags-prefix">tags →</span>
-    <div class="tags-inner" id="tagsInner">
-      <input
-        id="tagInput"
-        type="text"
-        placeholder="add tag, press enter or comma"
-        autocomplete="off"
-        spellcheck="false"
-      >
-    </div>
+  <div class="upload-area">
+    <span id="fileBadge" class="file-badge" style="display:none">
+      <span id="fileName"></span>
+      <button id="clearFile" title="clear">&#x2715;</button>
+    </span>
+    <button id="uploadBtn">&#x2191; upload .txt</button>
+    <input id="fileInput" type="file" accept=".txt,text/plain" style="display:none">
   </div>
 
   <div class="actions">
-    <span class="hint"><kbd>⌘</kbd> / <kbd>Ctrl</kbd> + <kbd>↵</kbd> to capture</span>
+    <span class="hint"><kbd>&#x2318;</kbd> / <kbd>Ctrl</kbd> + <kbd>&#x23CE;</kbd> to capture</span>
     <button id="captureBtn">Capture</button>
   </div>
 
   <div class="divider"><span>search</span></div>
 
   <div class="search-row">
-    <input
-      id="searchInput"
-      type="text"
-      placeholder="search your thoughts…"
-      autocomplete="off"
-      spellcheck="false"
-    >
+    <input id="searchInput" type="text" placeholder="Search your knowledge&#x2026;" autocomplete="off" spellcheck="false">
     <button id="searchBtn">Search</button>
   </div>
-
   <div id="searchResults"></div>
 
   <div class="divider"><span>recent</span></div>
-
-  <div id="recentList"><div class="r-empty">loading…</div></div>
+  <div id="recentList"><div class="r-empty">loading&#x2026;</div></div>
 </main>
 
 <footer>
   <span>mindstore</span>
-  <span id="footerCount">—</span>
+  <span id="footerCount">&#x2014;</span>
 </footer>
 
 <script>
-  // ── Refs ───────────────────────────────────────────────────────────
-  const thoughtEl   = document.getElementById('thought');
-  const tagInputEl  = document.getElementById('tagInput');
-  const tagsInner   = document.getElementById('tagsInner');
-  const captureBtn  = document.getElementById('captureBtn');
-  const recentList  = document.getElementById('recentList');
-  const dotEl       = document.getElementById('dot');
-  const connEl      = document.getElementById('connStatus');
-  const flashEl     = document.getElementById('flash');
-  const toastEl     = document.getElementById('toast');
-  const charCountEl = document.getElementById('charCount');
-  const footerCount = document.getElementById('footerCount');
-  const typeLabel   = document.getElementById('typeLabel');
-  const fileInput   = document.getElementById('fileInput');
-  const uploadBtn   = document.getElementById('uploadBtn');
-  const fileBadge   = document.getElementById('fileBadge');
-  const fileNameEl  = document.getElementById('fileName');
+  const thoughtEl    = document.getElementById('thought');
+  const tagInputEl   = document.getElementById('tagInput');
+  const tagsInner    = document.getElementById('tagsInner');
+  const captureBtn   = document.getElementById('captureBtn');
+  const recentList   = document.getElementById('recentList');
+  const dotEl        = document.getElementById('dot');
+  const connEl       = document.getElementById('connStatus');
+  const flashEl      = document.getElementById('flash');
+  const toastEl      = document.getElementById('toast');
+  const charCountEl  = document.getElementById('charCount');
+  const footerCount  = document.getElementById('footerCount');
+  const typeLabel    = document.getElementById('typeLabel');
+  const fileInput    = document.getElementById('fileInput');
+  const uploadBtn    = document.getElementById('uploadBtn');
+  const fileBadge    = document.getElementById('fileBadge');
+  const fileNameEl   = document.getElementById('fileName');
   const clearFileBtn = document.getElementById('clearFile');
 
-  // ── Type detection (mirrors backend chunker logic) ─────────────────
   function detectType(content) {
     const paragraphs = content.split('\n\n').filter(p => p.trim().length >= 50);
     if (paragraphs.length >= 2) return 'note';
-    const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
-    if (wordCount > 500) return 'note';
+    if (content.trim().split(/\s+/).filter(Boolean).length > 500) return 'note';
     return 'thought';
   }
-
   function updateTypeLabel(content) {
     const type = detectType(content);
     typeLabel.textContent = type;
     typeLabel.classList.toggle('is-note', type === 'note');
   }
 
-  // ── State ──────────────────────────────────────────────────────────
   const tags = [];
-  let busy = false;
-  let toastTimer = null;
-  let isFileUpload = false;
+  let busy = false, toastTimer = null, isFileUpload = false;
 
-  // ── Clock ──────────────────────────────────────────────────────────
   const clockEl = document.getElementById('clock');
-  function tick() {
-    clockEl.textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
-  }
-  tick();
-  setInterval(tick, 1000);
+  function tick() { clockEl.textContent = new Date().toLocaleTimeString('en-GB', { hour12: false }); }
+  tick(); setInterval(tick, 1000);
 
-  // ── Char counter ───────────────────────────────────────────────────
   thoughtEl.addEventListener('input', () => {
     const n = thoughtEl.value.length;
-    charCountEl.textContent = `${n.toLocaleString()} / 50,000`;
+    charCountEl.textContent = n > 999 ? (n/1000).toFixed(1)+'k / 50k' : n+' / 50k';
     charCountEl.classList.toggle('warn', n > 45000);
     updateTypeLabel(thoughtEl.value);
   });
 
-  // ── Tags ───────────────────────────────────────────────────────────
   function addTag(raw) {
     const t = raw.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
     if (!t || tags.includes(t) || tags.length >= 20) return;
-    tags.push(t);
-    renderTags();
+    tags.push(t); renderTags();
   }
-
-  function removeTag(t) {
-    const i = tags.indexOf(t);
-    if (i !== -1) { tags.splice(i, 1); renderTags(); }
-  }
-
+  function removeTag(t) { const i = tags.indexOf(t); if (i !== -1) { tags.splice(i,1); renderTags(); } }
   function renderTags() {
     tagsInner.querySelectorAll('.chip').forEach(el => el.remove());
     tags.forEach(t => {
       const chip = document.createElement('span');
       chip.className = 'chip';
-      chip.innerHTML = `${esc(t)}<button class="chip-rm" aria-label="remove ${t}">✕</button>`;
+      chip.innerHTML = esc(t) + '<button class="chip-rm" aria-label="remove">&#x2715;</button>';
       chip.querySelector('.chip-rm').addEventListener('click', () => removeTag(t));
       tagsInner.insertBefore(chip, tagInputEl);
     });
   }
-
   tagInputEl.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addTag(tagInputEl.value);
-      tagInputEl.value = '';
-    } else if (e.key === 'Backspace' && !tagInputEl.value && tags.length) {
-      removeTag(tags[tags.length - 1]);
-    }
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(tagInputEl.value); tagInputEl.value = ''; }
+    else if (e.key === 'Backspace' && !tagInputEl.value && tags.length) removeTag(tags[tags.length-1]);
   });
-  tagInputEl.addEventListener('blur', () => {
-    if (tagInputEl.value.trim()) { addTag(tagInputEl.value); tagInputEl.value = ''; }
-  });
-  tagsInner.addEventListener('click', e => {
-    if (e.target === tagsInner) tagInputEl.focus();
-  });
+  tagInputEl.addEventListener('blur', () => { if (tagInputEl.value.trim()) { addTag(tagInputEl.value); tagInputEl.value = ''; } });
+  tagsInner.addEventListener('click', e => { if (e.target === tagsInner) tagInputEl.focus(); });
 
-  // ── Flash ──────────────────────────────────────────────────────────
   function flash() {
-    flashEl.classList.remove('active', 'fade');
-    void flashEl.offsetWidth;
+    flashEl.classList.remove('active','fade'); void flashEl.offsetWidth;
     flashEl.classList.add('active');
     setTimeout(() => flashEl.classList.add('fade'), 350);
-    setTimeout(() => flashEl.classList.remove('active', 'fade'), 700);
+    setTimeout(() => flashEl.classList.remove('active','fade'), 700);
   }
-
-  // ── Toast ──────────────────────────────────────────────────────────
-  function toast(msg, type = '') {
-    clearTimeout(toastTimer);
-    toastEl.textContent = msg;
-    toastEl.className = `show ${type}`;
+  function toast(msg, type='') {
+    clearTimeout(toastTimer); toastEl.textContent = msg;
+    toastEl.className = 'show ' + type;
     toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2600);
   }
 
-  // ── File upload ────────────────────────────────────────────────────
   uploadBtn.addEventListener('click', () => fileInput.click());
-
   fileInput.addEventListener('change', () => {
-    const file = fileInput.files[0];
-    if (!file) return;
+    const file = fileInput.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = e => {
-      thoughtEl.value = e.target.result;
-      isFileUpload = true;
-      fileNameEl.textContent = file.name;
-      fileBadge.style.display = 'inline-flex';
+      thoughtEl.value = e.target.result; isFileUpload = true;
+      fileNameEl.textContent = file.name; fileBadge.style.display = 'inline-flex';
       const n = thoughtEl.value.length;
-      charCountEl.textContent = `${n.toLocaleString()} / 50,000`;
-      charCountEl.classList.toggle('warn', n > 45000);
-      typeLabel.textContent = 'note';
-      typeLabel.classList.add('is-note');
-      thoughtEl.focus();
+      charCountEl.textContent = n+' / 50k'; charCountEl.classList.toggle('warn', n > 45000);
+      typeLabel.textContent = 'note'; typeLabel.classList.add('is-note'); thoughtEl.focus();
     };
-    reader.readAsText(file);
-    fileInput.value = '';
+    reader.readAsText(file); fileInput.value = '';
   });
-
-  function clearFile() {
-    isFileUpload = false;
-    fileBadge.style.display = 'none';
-    fileNameEl.textContent = '';
-    updateTypeLabel(thoughtEl.value);
-  }
-
+  function clearFile() { isFileUpload = false; fileBadge.style.display = 'none'; fileNameEl.textContent = ''; updateTypeLabel(thoughtEl.value); }
   clearFileBtn.addEventListener('click', clearFile);
 
-  // ── Capture ────────────────────────────────────────────────────────
   async function capture() {
-    const content = thoughtEl.value.trim();
-    if (!content || busy) return;
-
-    // Flush any pending tag
+    const content = thoughtEl.value.trim(); if (!content || busy) return;
     if (tagInputEl.value.trim()) { addTag(tagInputEl.value); tagInputEl.value = ''; }
-
-    busy = true;
-    captureBtn.disabled = true;
-    captureBtn.textContent = '…';
-
+    busy = true; captureBtn.disabled = true; captureBtn.textContent = '\u2026';
     try {
       const content_type = isFileUpload ? 'note' : detectType(content);
       const res = await fetch('/api/ingest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, content_type, tags: [...tags] }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || `HTTP ${res.status}`);
-      }
-      flash();
-      toast(`captured as ${content_type} →`);
-      thoughtEl.value = '';
-      charCountEl.textContent = '0 / 50,000';
-      clearFile();
-      updateTypeLabel('');
-      tags.length = 0;
-      renderTags();
-      tagInputEl.value = '';
-      thoughtEl.focus();
-      loadRecent();
-    } catch (err) {
-      toast(`error: ${err.message}`, 'error');
-    } finally {
-      busy = false;
-      captureBtn.disabled = false;
-      captureBtn.textContent = 'Capture';
-    }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'HTTP '+res.status); }
+      flash(); toast('captured as '+content_type+' \u2192');
+      thoughtEl.value = ''; charCountEl.textContent = '0 / 50k'; clearFile(); updateTypeLabel('');
+      tags.length = 0; renderTags(); tagInputEl.value = ''; thoughtEl.focus(); loadRecent();
+    } catch(err) { toast('error: '+err.message, 'error'); }
+    finally { busy = false; captureBtn.disabled = false; captureBtn.textContent = 'Capture'; }
   }
 
   captureBtn.addEventListener('click', capture);
-  thoughtEl.addEventListener('keydown', e => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); capture(); }
-  });
+  thoughtEl.addEventListener('keydown', e => { if ((e.metaKey||e.ctrlKey) && e.key==='Enter') { e.preventDefault(); capture(); } });
 
-  // ── Recent ─────────────────────────────────────────────────────────
   function relTime(iso) {
     const diff = Date.now() - new Date(iso).getTime();
-    const m = Math.floor(diff / 60000);
-    if (m < 1)  return 'just now';
-    if (m < 60) return `${m}m`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h`;
-    return `${Math.floor(h / 24)}d`;
+    const m = Math.floor(diff/60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m+'m';
+    const h = Math.floor(m/60);
+    if (h < 24) return h+'h';
+    return Math.floor(h/24)+'d';
   }
 
   async function loadRecent() {
@@ -939,152 +539,76 @@
       const res = await fetch('/api/recent?limit=5');
       if (!res.ok) throw new Error();
       const data = await res.json();
-
-      dotEl.className = 'dot on';
-      connEl.textContent = 'connected';
-
-      if (!data.length) {
-        recentList.innerHTML = '<div class="r-empty">no captures yet</div>';
-        footerCount.textContent = '0 entries';
-        return;
-      }
-
+      dotEl.className = 'status-dot on'; connEl.textContent = 'connected';
+      if (!data.length) { recentList.innerHTML = '<div class="r-empty">no captures yet</div>'; footerCount.textContent = '0 entries'; return; }
       recentList.innerHTML = '';
       data.forEach((item, i) => {
         const el = document.createElement('div');
-        el.className = 'r-item';
-        el.style.animationDelay = `${i * 35}ms`;
-        const tagsHtml = (item.tags || [])
-          .map(t => `<span class="r-tag">${esc(t)}</span>`)
-          .join('');
-        el.innerHTML = `
-          <div class="r-time">${relTime(item.created_at)}</div>
-          <div>
-            <div class="r-content">${esc(item.content)}</div>
-            ${tagsHtml ? `<div class="r-tags">${tagsHtml}</div>` : ''}
-          </div>`;
+        el.className = 'r-item'; el.style.animationDelay = (i*35)+'ms';
+        const tagsHtml = (item.tags||[]).map(t => '<span class="r-tag">'+esc(t)+'</span>').join('');
+        el.innerHTML = '<div class="r-time">'+relTime(item.created_at)+'</div><div><div class="r-content">'+esc(item.content)+'</div>'+(tagsHtml?'<div class="r-tags">'+tagsHtml+'</div>':'')+'</div>';
         recentList.appendChild(el);
       });
-
-      footerCount.textContent = `${data.length} shown`;
-    } catch {
-      dotEl.className = 'dot err';
-      connEl.textContent = 'offline';
-      recentList.innerHTML = '<div class="r-empty">could not reach api</div>';
-    }
+      footerCount.textContent = data.length+' shown';
+    } catch { dotEl.className = 'status-dot err'; connEl.textContent = 'offline'; recentList.innerHTML = '<div class="r-empty">could not reach api</div>'; }
   }
 
-  // ── Utility ────────────────────────────────────────────────────────
-  function esc(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-  }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  // ── Search ─────────────────────────────────────────────────────────
-  const searchInputEl  = document.getElementById('searchInput');
-  const searchBtnEl    = document.getElementById('searchBtn');
-  const searchResults  = document.getElementById('searchResults');
+  const searchInputEl = document.getElementById('searchInput');
+  const searchBtnEl   = document.getElementById('searchBtn');
+  const searchResults = document.getElementById('searchResults');
   let searching = false;
 
   async function doSearch() {
-    const q = searchInputEl.value.trim();
-    if (!q || searching) return;
-
-    searching = true;
-    searchBtnEl.disabled = true;
-    searchBtnEl.textContent = '…';
-    searchResults.innerHTML = '<div class="s-empty">searching…</div>';
-
+    const q = searchInputEl.value.trim(); if (!q || searching) return;
+    searching = true; searchBtnEl.disabled = true; searchBtnEl.textContent = '\u2026';
+    searchResults.innerHTML = '<div class="s-empty">searching\u2026</div>';
     try {
-      const params = new URLSearchParams({ q, limit: 10 });
-      const res = await fetch(`/api/search?${params}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await fetch('/api/search?' + new URLSearchParams({ q, limit: 10 }));
+      if (!res.ok) throw new Error('HTTP '+res.status);
       const data = await res.json();
-
-      if (!data.length) {
-        searchResults.innerHTML = '<div class="s-empty">no results found</div>';
-        return;
-      }
-
+      if (!data.length) { searchResults.innerHTML = '<div class="s-empty">no results found</div>'; return; }
       searchResults.innerHTML = '';
       data.forEach((item, i) => {
         const el = document.createElement('div');
-        el.className = 's-item';
-        el.style.animationDelay = `${i * 30}ms`;
+        el.className = 's-item'; el.style.animationDelay = (i*30)+'ms';
         const simPct = Math.round(item.similarity * 100);
-        const tagsHtml = (item.tags || [])
-          .map(t => `<span class="r-tag">${esc(t)}</span>`)
-          .join('');
-        el.innerHTML = `
-          <div class="s-sim">${simPct}%</div>
-          <div>
-            <div class="s-meta">
-              <span class="s-type">${esc(item.content_type)}</span>
-              <span class="r-time">${relTime(item.created_at)}</span>
-            </div>
-            <div class="r-content">${esc(item.content)}</div>
-            ${tagsHtml ? `<div class="r-tags">${tagsHtml}</div>` : ''}
-          </div>`;
+        const tagsHtml = (item.tags||[]).map(t => '<span class="r-tag">'+esc(t)+'</span>').join('');
+        el.innerHTML = '<div class="s-sim">'+simPct+'%</div><div><div class="s-meta"><span class="s-type">'+esc(item.content_type)+'</span><span class="r-time">'+relTime(item.created_at)+'</span></div><div class="r-content">'+esc(item.content)+'</div>'+(tagsHtml?'<div class="r-tags">'+tagsHtml+'</div>':'')+'</div>';
         el.addEventListener('click', () => openModal(item, simPct));
         searchResults.appendChild(el);
       });
-    } catch (err) {
-      searchResults.innerHTML = `<div class="s-empty">error: ${esc(err.message)}</div>`;
-    } finally {
-      searching = false;
-      searchBtnEl.disabled = false;
-      searchBtnEl.textContent = 'Search';
-    }
+    } catch(err) { searchResults.innerHTML = '<div class="s-empty">error: '+esc(err.message)+'</div>'; }
+    finally { searching = false; searchBtnEl.disabled = false; searchBtnEl.textContent = 'Search'; }
   }
 
   searchBtnEl.addEventListener('click', doSearch);
-  searchInputEl.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
-  });
-  searchInputEl.addEventListener('input', () => {
-    if (!searchInputEl.value.trim()) searchResults.innerHTML = '';
-  });
+  searchInputEl.addEventListener('keydown', e => { if (e.key==='Enter') { e.preventDefault(); doSearch(); } });
+  searchInputEl.addEventListener('input', () => { if (!searchInputEl.value.trim()) searchResults.innerHTML = ''; });
 
-  // ── Modal ──────────────────────────────────────────────────────────
-  const modalOverlay  = document.getElementById('modal-overlay');
-  const modalType     = document.getElementById('modal-type');
-  const modalTime     = document.getElementById('modal-time');
-  const modalSim      = document.getElementById('modal-sim');
-  const modalContent  = document.getElementById('modal-content');
-  const modalTags     = document.getElementById('modal-tags');
-  const modalClose    = document.getElementById('modal-close');
+  const modalOverlay = document.getElementById('modal-overlay');
+  const modalType    = document.getElementById('modal-type');
+  const modalTime    = document.getElementById('modal-time');
+  const modalSim     = document.getElementById('modal-sim');
+  const modalContent = document.getElementById('modal-content');
+  const modalTags    = document.getElementById('modal-tags');
+  const modalClose   = document.getElementById('modal-close');
 
   function openModal(item, simPct) {
-    modalType.textContent = item.content_type;
-    modalTime.textContent = relTime(item.created_at);
-    modalSim.textContent  = simPct != null ? `${simPct}% match` : '';
+    modalType.textContent = item.content_type; modalTime.textContent = relTime(item.created_at);
+    modalSim.textContent = simPct != null ? simPct+'% match' : '';
     modalContent.textContent = item.content;
-    modalTags.innerHTML = (item.tags || [])
-      .map(t => `<span class="r-tag">${esc(t)}</span>`).join('');
+    modalTags.innerHTML = (item.tags||[]).map(t => '<span class="r-tag">'+esc(t)+'</span>').join('');
     modalTags.style.display = item.tags && item.tags.length ? 'flex' : 'none';
-    modalOverlay.classList.add('open');
-    document.addEventListener('keydown', onModalKey);
+    modalOverlay.classList.add('open'); document.addEventListener('keydown', onModalKey);
   }
-
-  function closeModal() {
-    modalOverlay.classList.remove('open');
-    document.removeEventListener('keydown', onModalKey);
-  }
-
-  function onModalKey(e) {
-    if (e.key === 'Escape') closeModal();
-  }
-
+  function closeModal() { modalOverlay.classList.remove('open'); document.removeEventListener('keydown', onModalKey); }
+  function onModalKey(e) { if (e.key==='Escape') closeModal(); }
   modalClose.addEventListener('click', closeModal);
-  modalOverlay.addEventListener('click', e => {
-    if (e.target === modalOverlay) closeModal();
-  });
+  modalOverlay.addEventListener('click', e => { if (e.target===modalOverlay) closeModal(); });
 
-  // ── Init ───────────────────────────────────────────────────────────
-  loadRecent();
-  setInterval(loadRecent, 30000);
+  loadRecent(); setInterval(loadRecent, 30000);
 </script>
 <script src="/nav.js"></script>
 </body>

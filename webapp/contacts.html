@@ -3,153 +3,153 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contacts — Mindstore</title>
+  <title>Contacts &#x2014; Mindstore</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
     :root {
-      --bg:#f5f4f0; --bg-1:#ffffff; --bg-2:#edecea;
-      --border:#d8d6ce; --border-2:#e6e4dc;
-      --text:#1a1918; --text-dim:#6b6966; --text-dimmer:#b5b2ac;
-      --accent:#2563eb; --accent-dim:#1d4ed8;
-      --green:#16a34a; --red:#dc2626; --yellow:#d97706;
-      --font:'JetBrains Mono', monospace;
+      --bg:#f0f5f8; --bg-card:#ffffff; --bg-raised:#e6edf3; --bg-hover:#dde7ef;
+      --border:#c4d4e0; --border-sub:#d8e5ee;
+      --text:#0f2130; --text-2:#3d6a82; --text-3:#8aafc4;
+      --teal:#0aa898; --teal-dim:#088a7c; --teal-glow:rgba(10,168,152,0.15); --teal-bg:rgba(10,168,152,0.08);
+      --green:#1aaa60; --green-dim:#158a4e; --green-glow:rgba(26,170,96,0.14); --green-bg:rgba(26,170,96,0.08);
+      --blue:#2a7db8; --red:#cc3a3a; --yellow:#a06818;
+      --display:'Playfair Display',serif; --mono:'IBM Plex Mono',monospace;
     }
-    html, body { height:100%; background:var(--bg); color:var(--text); font-family:var(--font); font-size:13px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+    html,body { height:100%; background-color:var(--bg); background-image:radial-gradient(ellipse at 50% 0%,rgba(10,168,152,0.05) 0%,transparent 55%),radial-gradient(ellipse at 90% 90%,rgba(42,125,184,0.04) 0%,transparent 45%); background-attachment:fixed; color:var(--text); font-family:var(--mono); font-size:13px; line-height:1.65; -webkit-font-smoothing:antialiased; }
     body { display:flex; flex-direction:column; min-height:100vh; }
 
-    #toast { position:fixed; bottom:20px; right:20px; background:var(--bg-1); border:1px solid var(--border); border-left:3px solid var(--green); padding:9px 14px; font-size:11px; color:var(--green); letter-spacing:.04em; opacity:0; transform:translateY(6px); transition:opacity .18s,transform .18s; pointer-events:none; z-index:99; }
+    #toast { position:fixed; bottom:24px; right:24px; background:var(--bg-card); border:1px solid var(--border); border-left:2px solid var(--green); padding:10px 18px; font-size:11px; color:var(--green); letter-spacing:.04em; opacity:0; transform:translateY(8px); transition:opacity .2s,transform .2s; pointer-events:none; z-index:9999; }
     #toast.error { border-left-color:var(--red); color:var(--red); }
     #toast.show  { opacity:1; transform:translateY(0); }
 
-    header { display:flex; align-items:center; justify-content:space-between; padding:14px 28px; border-bottom:1px solid var(--border); background:var(--bg-1); flex-shrink:0; }
-    .logo { font-size:11px; font-weight:600; letter-spacing:.18em; color:var(--accent); text-transform:uppercase; }
-    .logo em { color:var(--text-dim); font-style:normal; font-weight:300; }
+    header { display:flex; align-items:center; justify-content:space-between; padding:20px 40px; border-bottom:1px solid var(--border); flex-shrink:0; }
+    .wordmark { font-family:var(--display); font-size:26px; font-weight:400; color:var(--text); letter-spacing:.02em; }
+    .wordmark em { font-style:italic; color:var(--teal); }
 
-    main { flex:1; max-width:860px; width:100%; margin:0 auto; padding:36px 28px; }
+    main { flex:1; max-width:860px; width:100%; margin:0 auto; padding:40px 40px 48px; }
+    .section-label { display:flex; align-items:center; gap:14px; font-family:var(--display); font-size:14px; font-style:italic; color:var(--text-2); margin-bottom:18px; }
+    .section-label::before { content:''; display:block; width:30px; height:1px; background:var(--teal); flex-shrink:0; }
 
-    .toolbar { display:flex; gap:10px; margin-bottom:20px; align-items:center; flex-wrap:wrap; }
-    .search-input { flex:1; min-width:180px; background:var(--bg-1); border:1px solid var(--border); border-left:2px solid var(--border); color:var(--text); font-family:var(--font); font-size:12px; padding:8px 12px; outline:none; transition:border-color .15s; }
-    .search-input:focus { border-left-color:var(--accent); background:var(--bg-2); }
-
-    .add-form { background:var(--bg-1); border:1px solid var(--border); border-left:2px solid var(--accent); padding:18px 20px; margin-bottom:24px; }
+    .add-form { background:var(--bg-card); border:1px solid var(--border); border-top:2px solid var(--teal); padding:20px 24px; margin-bottom:28px; }
     .form-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
     .form-row:last-child { margin-bottom:0; }
-    input[type=text], textarea.notes-input {
-      background:var(--bg); border:1px solid var(--border); color:var(--text);
-      font-family:var(--font); font-size:12px; padding:7px 10px; outline:none;
-      transition:border-color .15s;
+    input[type=text],textarea.notes-input {
+      background:var(--bg-raised); border:1px solid var(--border); color:var(--text);
+      font-family:var(--mono); font-size:12px; padding:8px 12px; outline:none;
+      transition:border-color .15s,box-shadow .15s,background .15s;
     }
-    input[type=text]:focus, textarea.notes-input:focus { border-color:var(--accent); background:var(--bg-2); }
+    input[type=text]:focus,textarea.notes-input:focus { border-color:var(--teal); background:var(--bg-hover); box-shadow:0 0 0 3px var(--teal-glow); }
+    input::placeholder,textarea::placeholder { color:var(--text-3); }
     textarea.notes-input { width:100%; min-height:60px; resize:vertical; }
     .input-name { flex:1; min-width:160px; }
     .input-sm   { width:160px; }
 
-    .btn { background:var(--accent); color:#000; border:none; font-family:var(--font); font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; padding:8px 20px; cursor:pointer; transition:background .12s; }
-    .btn:hover { background:var(--accent-dim); }
-    .btn-sm { padding:4px 10px; font-size:9px; }
-    .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text-dim); }
-    .btn-ghost:hover { background:var(--bg-2); border-color:var(--accent); color:var(--accent); }
-    .btn-danger { background:transparent; border:1px solid var(--border); color:var(--text-dimmer); }
-    .btn-danger:hover { background:var(--red); border-color:var(--red); color:#fff; }
-    .btn-log { background:transparent; border:1px solid var(--green); color:var(--green); }
-    .btn-log:hover { background:var(--green); color:#fff; }
+    .btn { background:var(--teal); color:var(--bg); border:none; font-family:var(--mono); font-size:11px; font-weight:500; letter-spacing:.12em; text-transform:uppercase; padding:9px 22px; cursor:pointer; transition:background .15s,box-shadow .15s; }
+    .btn:hover { background:var(--teal-dim); box-shadow:0 0 20px var(--teal-glow); }
+    .btn-sm { padding:5px 12px; font-size:9px; }
+    .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text-2); }
+    .btn-ghost:hover { border-color:var(--teal); color:var(--teal); background:var(--teal-bg); }
+    .btn-log { background:transparent; border:1px solid rgba(46,200,122,0.35); color:var(--green); }
+    .btn-log:hover { background:var(--green-bg); border-color:var(--green); box-shadow:0 0 16px var(--green-glow); }
+    .btn-danger { background:transparent; border:1px solid var(--border); color:var(--text-3); }
+    .btn-danger:hover { background:rgba(224,96,96,0.1); border-color:var(--red); color:var(--red); }
 
-    .contact-item { background:var(--bg-1); border:1px solid var(--border-2); border-left:3px solid var(--border); padding:12px 16px; margin-bottom:8px; }
+    /* Toolbar */
+    .toolbar { display:flex; gap:10px; margin-bottom:20px; align-items:center; flex-wrap:wrap; }
+    .search-input { flex:1; min-width:180px; background:var(--bg-card); border:1px solid var(--border); color:var(--text); font-family:var(--mono); font-size:12px; padding:9px 14px; outline:none; transition:border-color .15s,box-shadow .15s,background .15s; }
+    .search-input:focus { border-color:var(--teal); background:var(--bg-raised); box-shadow:0 0 0 3px var(--teal-glow); }
+    .search-input::placeholder { color:var(--text-3); font-style:italic; }
+    .filter-pill { background:var(--bg-card); border:1px solid var(--border); color:var(--text-3); font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:5px 14px; cursor:pointer; transition:all .12s; border-radius:100px; }
+    .filter-pill:hover { border-color:var(--teal); color:var(--teal); }
+    .filter-pill.active { background:var(--teal-bg); border-color:rgba(15,191,166,0.4); color:var(--teal); }
+
+    /* Contact items */
+    .contact-item { background:var(--bg-card); border:1px solid var(--border); border-left:3px solid var(--border); padding:14px 18px; margin-bottom:8px; transition:border-color .15s,background .15s; }
+    .contact-item:hover { background:var(--bg-raised); }
     .contact-item.stale { border-left-color:var(--yellow); }
-    .contact-name { font-size:13px; font-weight:500; }
-    .contact-meta { font-size:10px; color:var(--text-dim); letter-spacing:.04em; margin-top:3px; display:flex; gap:10px; flex-wrap:wrap; }
-    .contact-notes { font-size:11px; color:var(--text-dim); margin-top:6px; white-space:pre-wrap; max-height:80px; overflow:hidden; position:relative; }
-    .contact-notes.expanded { max-height:none; }
-    .show-more { font-size:10px; color:var(--accent); cursor:pointer; display:inline-block; margin-top:2px; }
-    .stale-label { color:var(--yellow); font-weight:500; }
+    .contact-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+    .contact-identity { display:flex; align-items:flex-start; gap:12px; flex:1; }
+    .contact-avatar { width:34px; height:34px; border-radius:50%; background:var(--teal-bg); border:1px solid rgba(15,191,166,0.3); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; color:var(--teal); flex-shrink:0; text-transform:uppercase; }
+    .contact-name { font-size:13px; font-weight:400; color:var(--text); }
+    .contact-meta { font-size:10px; color:var(--text-2); letter-spacing:.04em; margin-top:3px; display:flex; gap:10px; flex-wrap:wrap; }
+    .stale-label { color:var(--yellow); }
     .never-label  { color:var(--red); }
-    .contact-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; align-items:center; }
-    .log-input-row { display:flex; gap:8px; margin-top:8px; }
+    .contact-notes { font-size:11px; color:var(--text-2); margin-top:8px; margin-left:46px; white-space:pre-wrap; max-height:72px; overflow:hidden; position:relative; line-height:1.6; }
+    .contact-notes.expanded { max-height:none; }
+    .show-more { font-size:10px; color:var(--teal); cursor:pointer; display:inline-block; margin-top:3px; margin-left:46px; transition:opacity .15s; }
+    .show-more:hover { opacity:.7; }
+    .contact-actions { display:flex; gap:6px; flex-wrap:wrap; flex-shrink:0; }
+    .log-input-row { display:flex; gap:8px; margin-top:10px; margin-left:46px; }
     .log-input-row input { flex:1; }
-    .edit-form { margin-top:12px; padding-top:12px; border-top:1px solid var(--border-2); display:none; }
+    .edit-form { margin-top:14px; padding-top:14px; border-top:1px solid var(--border-sub); display:none; }
     .edit-form.open { display:block; }
 
-    .empty { font-size:11px; color:var(--text-dimmer); font-style:italic; padding:20px 0; }
-
-    footer { padding:11px 28px; border-top:1px solid var(--border); background:var(--bg-1); font-size:10px; color:var(--text-dimmer); letter-spacing:.05em; }
-    ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:var(--bg); } ::-webkit-scrollbar-thumb { background:var(--border); }
+    .empty { font-size:11px; color:var(--text-3); font-style:italic; padding:20px 0; }
+    footer { padding:12px 40px; border-top:1px solid var(--border); font-size:10px; color:var(--text-3); letter-spacing:.07em; flex-shrink:0; }
+    ::-webkit-scrollbar { width:3px; } ::-webkit-scrollbar-track { background:var(--bg); } ::-webkit-scrollbar-thumb { background:var(--border); }
   </style>
 </head>
 <body>
-
 <div id="toast"></div>
-
 <header>
-  <div class="logo">MIND<em>STORE</em></div>
+  <div class="wordmark">Mind<em>store</em></div>
 </header>
 
 <main>
+  <div class="section-label">New contact</div>
   <div class="add-form">
     <div class="form-row">
-      <input type="text" class="input-name" id="newName" placeholder="Name…" autocomplete="off">
+      <input type="text" class="input-name" id="newName" placeholder="Name&#x2026;" autocomplete="off">
       <input type="text" class="input-sm" id="newEmail" placeholder="Email" autocomplete="off">
       <input type="text" class="input-sm" id="newPhone" placeholder="Phone" autocomplete="off">
       <input type="text" class="input-sm" id="newCompany" placeholder="Company" autocomplete="off">
     </div>
     <div class="form-row">
-      <textarea class="notes-input" id="newNotes" placeholder="Notes (optional)…"></textarea>
+      <textarea class="notes-input" id="newNotes" placeholder="Notes (optional)&#x2026;"></textarea>
     </div>
     <div class="form-row">
-      <button class="btn" id="addBtn">+ Add Contact</button>
+      <button class="btn" id="addBtn">+ Add contact</button>
     </div>
   </div>
 
   <div class="toolbar">
-    <input type="text" class="search-input" id="searchInput" placeholder="search by name…" autocomplete="off">
-    <button class="btn btn-ghost btn-sm" id="filterStaleBtn">reach out needed</button>
-    <button class="btn btn-ghost btn-sm active" id="filterAllBtn">all</button>
+    <input type="text" class="search-input" id="searchInput" placeholder="Search by name&#x2026;" autocomplete="off">
+    <button class="filter-pill active" id="filterAllBtn">All</button>
+    <button class="filter-pill" id="filterStaleBtn">Needs reach-out</button>
   </div>
 
-  <div id="contactList"><div class="empty">loading…</div></div>
+  <div id="contactList"><div class="empty">loading&#x2026;</div></div>
 </main>
 
-<footer id="footerCount">—</footer>
+<footer id="footerCount">&#x2014;</footer>
 
 <script>
   const listEl  = document.getElementById('contactList');
   const toastEl = document.getElementById('toast');
-  let toastTimer = null;
-  let allContacts = [];
-  let filterStale = false;
+  let toastTimer = null, allContacts = [], filterStale = false;
 
-  function toast(msg, type = '') {
-    clearTimeout(toastTimer);
-    toastEl.textContent = msg;
-    toastEl.className = `show ${type}`;
+  function toast(msg, type='') {
+    clearTimeout(toastTimer); toastEl.textContent = msg;
+    toastEl.className = 'show '+type;
     toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2800);
   }
-
-  function esc(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-  function daysSince(iso) {
-    if (!iso) return null;
-    return Math.floor((Date.now() - new Date(iso)) / 86400000);
-  }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function daysSince(iso) { if (!iso) return null; return Math.floor((Date.now()-new Date(iso))/86400000); }
+  function initials(name) { return name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
 
   async function api(method, path, body) {
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    const opts = {method, headers:{'Content-Type':'application/json'}};
     if (body) opts.body = JSON.stringify(body);
-    const res = await fetch('/api' + path, opts);
-    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${res.status}`); }
-    return res.status === 204 ? null : res.json();
+    const res = await fetch('/api'+path, opts);
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail||'HTTP '+res.status); }
+    return res.status===204 ? null : res.json();
   }
 
   async function loadContacts() {
-    try {
-      allContacts = await api('GET', '/contacts');
-      renderFiltered();
-    } catch (e) {
-      listEl.innerHTML = `<div class="empty">error: ${esc(e.message)}</div>`;
-    }
+    try { allContacts = await api('GET','/contacts'); renderFiltered(); }
+    catch(e) { listEl.innerHTML = '<div class="empty">error: '+esc(e.message)+'</div>'; }
   }
 
   function renderFiltered() {
@@ -161,154 +161,111 @@
   }
 
   function render(contacts) {
-    document.getElementById('footerCount').textContent = `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`;
+    document.getElementById('footerCount').textContent = contacts.length+' contact'+(contacts.length!==1?'s':'');
     if (!contacts.length) { listEl.innerHTML = '<div class="empty">no contacts</div>'; return; }
     listEl.innerHTML = '';
     contacts.forEach(c => {
       const ds = daysSince(c.last_contact_at);
       const stale = ds === null || ds >= 14;
       const el = document.createElement('div');
-      el.className = `contact-item${stale ? ' stale' : ''}`;
+      el.className = 'contact-item'+(stale?' stale':'');
       el.dataset.id = c.id;
-      const lastLabel = ds === null
+      const lastLabel = ds===null
         ? '<span class="never-label">never contacted</span>'
-        : ds === 0 ? 'today'
-        : `<span class="${ds >= 14 ? 'stale-label' : ''}">${ds}d ago</span>`;
-      const details = [c.email, c.phone, c.company].filter(Boolean).map(v => esc(v)).join(' · ');
-      el.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
-          <div style="flex:1">
-            <div class="contact-name">${esc(c.name)}</div>
-            <div class="contact-meta">
-              ${details ? `<span>${details}</span>` : ''}
-              <span>last: ${lastLabel}</span>
-              ${(c.tags||[]).map(t=>`<span>#${esc(t)}</span>`).join('')}
-            </div>
-            ${c.notes ? `<div class="contact-notes" id="notes-${c.id}">${esc(c.notes)}</div>` : ''}
-          </div>
-          <div class="contact-actions">
-            <button class="btn btn-sm btn-log log-btn" data-id="${c.id}">+ log</button>
-            <button class="btn btn-sm btn-ghost edit-btn" data-id="${c.id}">edit</button>
-            <button class="btn btn-sm btn-danger delete-btn" data-id="${c.id}">✕</button>
-          </div>
-        </div>
-        <div class="log-input-row" id="logRow-${c.id}" style="display:none">
-          <input type="text" class="log-input" placeholder="What happened?…" autocomplete="off">
-          <button class="btn btn-sm btn-log log-submit" data-id="${c.id}">save</button>
-          <button class="btn btn-sm btn-ghost log-cancel" data-id="${c.id}">cancel</button>
-        </div>
-        <div class="edit-form" id="edit-${c.id}">
-          <div class="form-row">
-            <input type="text" class="input-name e-name" value="${esc(c.name)}" placeholder="Name">
-            <input type="text" class="input-sm e-email" value="${esc(c.email||'')}" placeholder="Email">
-            <input type="text" class="input-sm e-phone" value="${esc(c.phone||'')}" placeholder="Phone">
-            <input type="text" class="input-sm e-company" value="${esc(c.company||'')}" placeholder="Company">
-          </div>
-          <div class="form-row"><textarea class="notes-input e-notes" placeholder="Notes…">${esc(c.notes||'')}</textarea></div>
-          <div class="form-row">
-            <button class="btn btn-sm save-btn" data-id="${c.id}">Save</button>
-            <button class="btn btn-sm btn-ghost cancel-btn" data-id="${c.id}">Cancel</button>
-          </div>
-        </div>`;
+        : ds===0 ? 'today'
+        : '<span class="'+(ds>=14?'stale-label':'')+'">'+ds+'d ago</span>';
+      const details = [c.email,c.phone,c.company].filter(Boolean).map(v=>esc(v)).join(' &middot; ');
+      el.innerHTML =
+        '<div class="contact-header">'+
+          '<div class="contact-identity">'+
+            '<div class="contact-avatar">'+initials(c.name)+'</div>'+
+            '<div>'+
+              '<div class="contact-name">'+esc(c.name)+'</div>'+
+              '<div class="contact-meta">'+
+                (details?'<span>'+details+'</span>':'')+
+                '<span>last: '+lastLabel+'</span>'+
+                (c.tags||[]).map(t=>'<span>#'+esc(t)+'</span>').join('')+
+              '</div>'+
+            '</div>'+
+          '</div>'+
+          '<div class="contact-actions">'+
+            '<button class="btn btn-sm btn-log log-btn" data-id="'+c.id+'">+ log</button>'+
+            '<button class="btn btn-sm btn-ghost edit-btn" data-id="'+c.id+'">edit</button>'+
+            '<button class="btn btn-sm btn-danger delete-btn" data-id="'+c.id+'">\u2715</button>'+
+          '</div>'+
+        '</div>'+
+        (c.notes?'<div class="contact-notes" id="notes-'+c.id+'">'+esc(c.notes)+'</div>':'')+
+        '<div class="log-input-row" id="logRow-'+c.id+'" style="display:none">'+
+          '<input type="text" class="log-input" placeholder="What happened?\u2026" autocomplete="off">'+
+          '<button class="btn btn-sm btn-log log-submit" data-id="'+c.id+'">save</button>'+
+          '<button class="btn btn-sm btn-ghost log-cancel" data-id="'+c.id+'">cancel</button>'+
+        '</div>'+
+        '<div class="edit-form" id="edit-'+c.id+'">'+
+          '<div class="form-row">'+
+            '<input type="text" class="input-name e-name" value="'+esc(c.name)+'" placeholder="Name">'+
+            '<input type="text" class="input-sm e-email" value="'+esc(c.email||'')+'" placeholder="Email">'+
+            '<input type="text" class="input-sm e-phone" value="'+esc(c.phone||'')+'" placeholder="Phone">'+
+            '<input type="text" class="input-sm e-company" value="'+esc(c.company||'')+'" placeholder="Company">'+
+          '</div>'+
+          '<div class="form-row"><textarea class="notes-input e-notes" placeholder="Notes\u2026">'+esc(c.notes||'')+'</textarea></div>'+
+          '<div class="form-row">'+
+            '<button class="btn btn-sm save-btn" data-id="'+c.id+'">Save</button>'+
+            '<button class="btn btn-sm btn-ghost cancel-btn" data-id="'+c.id+'">Cancel</button>'+
+          '</div>'+
+        '</div>';
 
-      // show-more for notes
-      const notesEl = el.querySelector(`#notes-${c.id}`);
-      if (notesEl && notesEl.scrollHeight > 86) {
+      const notesEl = el.querySelector('#notes-'+c.id);
+      if (notesEl && notesEl.scrollHeight > 80) {
         const sm = document.createElement('span');
-        sm.className = 'show-more';
-        sm.textContent = 'show more';
+        sm.className = 'show-more'; sm.textContent = 'show more';
         sm.addEventListener('click', () => {
           notesEl.classList.toggle('expanded');
           sm.textContent = notesEl.classList.contains('expanded') ? 'show less' : 'show more';
         });
         notesEl.insertAdjacentElement('afterend', sm);
       }
-
       listEl.appendChild(el);
     });
 
     listEl.querySelectorAll('.log-btn').forEach(btn => btn.addEventListener('click', () => {
-      const row = document.getElementById(`logRow-${btn.dataset.id}`);
-      row.style.display = row.style.display === 'none' ? 'flex' : 'none';
-      if (row.style.display === 'flex') row.querySelector('.log-input').focus();
+      const row = document.getElementById('logRow-'+btn.dataset.id);
+      row.style.display = row.style.display==='none' ? 'flex' : 'none';
+      if (row.style.display==='flex') row.querySelector('.log-input').focus();
     }));
-    listEl.querySelectorAll('.log-cancel').forEach(btn => btn.addEventListener('click', () => {
-      document.getElementById(`logRow-${btn.dataset.id}`).style.display = 'none';
-    }));
+    listEl.querySelectorAll('.log-cancel').forEach(btn => btn.addEventListener('click', () => { document.getElementById('logRow-'+btn.dataset.id).style.display='none'; }));
     listEl.querySelectorAll('.log-submit').forEach(btn => btn.addEventListener('click', async () => {
-      const row = document.getElementById(`logRow-${btn.dataset.id}`);
-      const note = row.querySelector('.log-input').value.trim();
-      if (!note) return;
-      try {
-        await api('POST', `/contacts/${btn.dataset.id}/interaction`, { note });
-        toast('interaction logged');
-        loadContacts();
-      } catch (e) { toast(e.message, 'error'); }
+      const row = document.getElementById('logRow-'+btn.dataset.id);
+      const note = row.querySelector('.log-input').value.trim(); if (!note) return;
+      try { await api('POST','/contacts/'+btn.dataset.id+'/interaction',{note}); toast('interaction logged'); loadContacts(); }
+      catch(e) { toast(e.message,'error'); }
     }));
-    listEl.querySelectorAll('.log-input').forEach(inp => inp.addEventListener('keydown', e => {
-      if (e.key === 'Enter') inp.closest('.log-input-row').querySelector('.log-submit').click();
-    }));
+    listEl.querySelectorAll('.log-input').forEach(inp => inp.addEventListener('keydown', e => { if (e.key==='Enter') inp.closest('.log-input-row').querySelector('.log-submit').click(); }));
     listEl.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', async () => {
       if (!confirm('Delete this contact?')) return;
-      try { await api('DELETE', `/contacts/${btn.dataset.id}`); toast('deleted'); loadContacts(); }
-      catch (e) { toast(e.message, 'error'); }
+      try { await api('DELETE','/contacts/'+btn.dataset.id); toast('deleted'); loadContacts(); }
+      catch(e) { toast(e.message,'error'); }
     }));
-    listEl.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', () => {
-      document.getElementById(`edit-${btn.dataset.id}`).classList.toggle('open');
-    }));
-    listEl.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', () => {
-      document.getElementById(`edit-${btn.dataset.id}`).classList.remove('open');
-    }));
+    listEl.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', () => { document.getElementById('edit-'+btn.dataset.id).classList.toggle('open'); }));
+    listEl.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', () => { document.getElementById('edit-'+btn.dataset.id).classList.remove('open'); }));
     listEl.querySelectorAll('.save-btn').forEach(btn => btn.addEventListener('click', async () => {
-      const form = document.getElementById(`edit-${btn.dataset.id}`);
-      const body = {
-        name:    form.querySelector('.e-name').value.trim(),
-        email:   form.querySelector('.e-email').value.trim() || null,
-        phone:   form.querySelector('.e-phone').value.trim() || null,
-        company: form.querySelector('.e-company').value.trim() || null,
-        notes:   form.querySelector('.e-notes').value.trim() || null,
-      };
-      try { await api('PUT', `/contacts/${btn.dataset.id}`, body); toast('saved'); loadContacts(); }
-      catch (e) { toast(e.message, 'error'); }
+      const form = document.getElementById('edit-'+btn.dataset.id);
+      const body = { name:form.querySelector('.e-name').value.trim(), email:form.querySelector('.e-email').value.trim()||null, phone:form.querySelector('.e-phone').value.trim()||null, company:form.querySelector('.e-company').value.trim()||null, notes:form.querySelector('.e-notes').value.trim()||null };
+      try { await api('PUT','/contacts/'+btn.dataset.id,body); toast('saved'); loadContacts(); }
+      catch(e) { toast(e.message,'error'); }
     }));
   }
 
   document.getElementById('searchInput').addEventListener('input', renderFiltered);
-  document.getElementById('filterStaleBtn').addEventListener('click', () => {
-    filterStale = true;
-    document.getElementById('filterStaleBtn').classList.add('active');
-    document.getElementById('filterAllBtn').classList.remove('active');
-    renderFiltered();
-  });
-  document.getElementById('filterAllBtn').addEventListener('click', () => {
-    filterStale = false;
-    document.getElementById('filterAllBtn').classList.add('active');
-    document.getElementById('filterStaleBtn').classList.remove('active');
-    renderFiltered();
-  });
+  document.getElementById('filterAllBtn').addEventListener('click', () => { filterStale=false; document.getElementById('filterAllBtn').classList.add('active'); document.getElementById('filterStaleBtn').classList.remove('active'); renderFiltered(); });
+  document.getElementById('filterStaleBtn').addEventListener('click', () => { filterStale=true; document.getElementById('filterStaleBtn').classList.add('active'); document.getElementById('filterAllBtn').classList.remove('active'); renderFiltered(); });
 
   document.getElementById('addBtn').addEventListener('click', async () => {
-    const name = document.getElementById('newName').value.trim();
-    if (!name) return;
-    const body = {
-      name,
-      email:   document.getElementById('newEmail').value.trim() || null,
-      phone:   document.getElementById('newPhone').value.trim() || null,
-      company: document.getElementById('newCompany').value.trim() || null,
-      notes:   document.getElementById('newNotes').value.trim() || null,
-    };
-    try {
-      await api('POST', '/contacts', body);
-      toast('contact added');
-      ['newName','newEmail','newPhone','newCompany','newNotes'].forEach(id => { document.getElementById(id).value = ''; });
-      loadContacts();
-    } catch (e) { toast(e.message, 'error'); }
+    const name = document.getElementById('newName').value.trim(); if (!name) return;
+    const body = { name, email:document.getElementById('newEmail').value.trim()||null, phone:document.getElementById('newPhone').value.trim()||null, company:document.getElementById('newCompany').value.trim()||null, notes:document.getElementById('newNotes').value.trim()||null };
+    try { await api('POST','/contacts',body); toast('contact added'); ['newName','newEmail','newPhone','newCompany','newNotes'].forEach(id=>{document.getElementById(id).value='';}); loadContacts(); }
+    catch(e) { toast(e.message,'error'); }
   });
-
-  document.getElementById('newName').addEventListener('keydown', e => {
-    if (e.key === 'Enter') document.getElementById('addBtn').click();
-  });
-
+  document.getElementById('newName').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('addBtn').click(); });
   loadContacts();
 </script>
 <script src="/nav.js"></script>

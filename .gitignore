@@ -21,6 +21,7 @@ postgres_data/
 .vscode/
 *.iml
 mindstore-claude-code-prompt.md
+Claude.md
 
 # OS
 .DS_Store

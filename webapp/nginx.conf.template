@@ -1,5 +1,5 @@
 server {
-    listen 3000;
+    listen ${WEBAPP_PORT};
     server_name _;
 
     auth_basic "Mindstore";
@@ -10,7 +10,7 @@ server {
 
     # Proxy /api/ingest → ingestion service
     location = /api/ingest {
-        proxy_pass http://ingestion:8000/ingest;
+        proxy_pass http://ingestion:${INGESTION_PORT}/ingest;
         proxy_set_header Host $host;
         proxy_set_header X-API-Key ${API_KEY};
         proxy_set_header Content-Type application/json;
@@ -19,7 +19,7 @@ server {
 
     # Proxy /api/recent → ingestion service
     location = /api/recent {
-        proxy_pass http://ingestion:8000/recent;
+        proxy_pass http://ingestion:${INGESTION_PORT}/recent;
         proxy_set_header Host $host;
         proxy_set_header X-API-Key ${API_KEY};
         proxy_pass_request_headers on;
@@ -27,7 +27,7 @@ server {
 
     # Proxy /api/search → ingestion service
     location = /api/search {
-        proxy_pass http://ingestion:8000/search;
+        proxy_pass http://ingestion:${INGESTION_PORT}/search;
         proxy_set_header Host $host;
         proxy_set_header X-API-Key ${API_KEY};
         proxy_pass_request_headers on;
@@ -36,7 +36,7 @@ server {
     # Proxy /api/tasks, /api/contacts, /api/home, /api/dashboard → ingestion service
     location /api/tasks {
         rewrite ^/api/(.*)$ /$1 break;
-        proxy_pass http://ingestion:8000;
+        proxy_pass http://ingestion:${INGESTION_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-API-Key ${API_KEY};
         proxy_pass_request_headers on;
@@ -44,7 +44,7 @@ server {
 
     location /api/contacts {
         rewrite ^/api/(.*)$ /$1 break;
-        proxy_pass http://ingestion:8000;
+        proxy_pass http://ingestion:${INGESTION_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-API-Key ${API_KEY};
         proxy_pass_request_headers on;
@@ -52,7 +52,7 @@ server {
 
     location /api/home {
         rewrite ^/api/(.*)$ /$1 break;
-        proxy_pass http://ingestion:8000;
+        proxy_pass http://ingestion:${INGESTION_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-API-Key ${API_KEY};
         proxy_pass_request_headers on;
@@ -60,7 +60,7 @@ server {
 
     location /api/dashboard {
         rewrite ^/api/(.*)$ /$1 break;
-        proxy_pass http://ingestion:8000;
+        proxy_pass http://ingestion:${INGESTION_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-API-Key ${API_KEY};
         proxy_pass_request_headers on;

@@ -23,7 +23,7 @@ services:
       dockerfile: ingestion/Dockerfile
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${INGESTION_PORT:-8000}:${INGESTION_PORT:-8000}"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       API_KEY: ${API_KEY}
@@ -41,10 +41,10 @@ services:
       dockerfile: mcp_server/Dockerfile
     restart: unless-stopped
     ports:
-      - "8001:8001"
+      - "${MCP_PORT:-8001}:${MCP_PORT:-8001}"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      INGESTION_URL: http://ingestion:8000
+      INGESTION_URL: http://ingestion:${INGESTION_PORT:-8000}
       API_KEY: ${API_KEY}
       MCP_HOST: ${MCP_HOST:-0.0.0.0}
       MCP_PORT: ${MCP_PORT:-8001}
@@ -60,11 +60,13 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${WEBAPP_PORT:-3000}:${WEBAPP_PORT:-3000}"
     environment:
       API_KEY: ${API_KEY}
       WEB_USERNAME: ${WEB_USERNAME}
       WEB_PASSWORD: ${WEB_PASSWORD}
+      WEBAPP_PORT: ${WEBAPP_PORT:-3000}
+      INGESTION_PORT: ${INGESTION_PORT:-8000}
     depends_on:
       ingestion:
         condition: service_started

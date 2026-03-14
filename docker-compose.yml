@@ -67,6 +67,9 @@ services:
       WEB_PASSWORD: ${WEB_PASSWORD}
       WEBAPP_PORT: ${WEBAPP_PORT:-3000}
       INGESTION_PORT: ${INGESTION_PORT:-8000}
+    volumes:
+      - ${TLS_CERT_PATH}:/etc/nginx/certs/server.crt:ro
+      - ${TLS_KEY_PATH}:/etc/nginx/certs/server.key:ro
     depends_on:
       ingestion:
         condition: service_started

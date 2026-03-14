@@ -129,6 +129,31 @@ async def get_recent(
     ]
 
 
+async def get_thought_full(pool: asyncpg.Pool, id: str) -> dict | None:
+    """Return a thought with all its chunks' content concatenated in order."""
+    rows = await pool.fetch(
+        """
+        SELECT id::text, content, title, tags, content_type, created_at, chunk_index
+        FROM thoughts
+        WHERE id = $1::uuid OR parent_id = $1::uuid
+        ORDER BY chunk_index ASC
+        """,
+        id,
+    )
+    if not rows:
+        return None
+    first = dict(rows[0])
+    return {
+        "id": first["id"],
+        "content": "\n\n".join(r["content"] for r in rows),
+        "title": first["title"],
+        "tags": first["tags"],
+        "content_type": first["content_type"],
+        "created_at": first["created_at"].isoformat(),
+        "total_chunks": len(rows),
+    }
+
+
 async def semantic_search(
     pool: asyncpg.Pool,
     embedding: list[float],

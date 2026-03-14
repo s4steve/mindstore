@@ -120,6 +120,14 @@ async def update_thought(id: str, request: UpdateRequest):
     return UpdateResponse(id=id, re_embedded=re_embedded)
 
 
+@app.get("/thoughts/{thought_id}", dependencies=[Depends(get_api_key)])
+async def get_thought(thought_id: str):
+    result = await db_module.get_thought_full(get_pool(), thought_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Thought not found")
+    return result
+
+
 @app.delete("/thoughts/{id}", response_model=DeleteResponse, dependencies=[Depends(get_api_key)])
 async def delete_thought(id: str):
     deleted = await db_module.delete_thought(get_pool(), id)

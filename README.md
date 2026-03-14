@@ -85,6 +85,7 @@ The web UI is served on port 3000 and requires HTTP basic auth (`WEB_USERNAME` /
 - Content with multiple paragraphs or >500 words is auto-detected as a note
 - Upload a `.txt` file to ingest as a note
 - Semantic search returns results ranked by similarity score
+- Click any recent entry or search result to open a detail modal; long notes are reassembled from all chunks so the full content is shown
 
 ### Tasks page
 - Add tasks with title, priority (high/medium/low), category, due date, and optional recurrence
@@ -117,6 +118,7 @@ All endpoints (except `/health`) require `X-API-Key` header.
 | `POST` | `/ingest/batch` | Ingest multiple entries |
 | `GET` | `/search?q=&limit=&content_type=` | Semantic search |
 | `GET` | `/recent?limit=&content_type=` | Most recent entries |
+| `GET` | `/thoughts/{id}` | Fetch a thought with all chunks concatenated |
 | `PUT` | `/thoughts/{id}` | Update entry (re-embeds if content changes) |
 | `DELETE` | `/thoughts/{id}` | Delete entry and all chunks |
 | `GET` | `/stats` | Count by type, most recent timestamp |

@@ -547,6 +547,8 @@
         el.className = 'r-item'; el.style.animationDelay = (i*35)+'ms';
         const tagsHtml = (item.tags||[]).map(t => '<span class="r-tag">'+esc(t)+'</span>').join('');
         el.innerHTML = '<div class="r-time">'+relTime(item.created_at)+'</div><div><div class="r-content">'+esc(item.content)+'</div>'+(tagsHtml?'<div class="r-tags">'+tagsHtml+'</div>':'')+'</div>';
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', () => openModal(item, null));
         recentList.appendChild(el);
       });
       footerCount.textContent = data.length+' shown';
@@ -595,13 +597,20 @@
   const modalTags    = document.getElementById('modal-tags');
   const modalClose   = document.getElementById('modal-close');
 
-  function openModal(item, simPct) {
+  async function openModal(item, simPct) {
     modalType.textContent = item.content_type; modalTime.textContent = relTime(item.created_at);
     modalSim.textContent = simPct != null ? simPct+'% match' : '';
     modalContent.textContent = item.content;
     modalTags.innerHTML = (item.tags||[]).map(t => '<span class="r-tag">'+esc(t)+'</span>').join('');
     modalTags.style.display = item.tags && item.tags.length ? 'flex' : 'none';
     modalOverlay.classList.add('open'); document.addEventListener('keydown', onModalKey);
+
+    if (['thought', 'note', 'event'].includes(item.content_type)) {
+      try {
+        const resp = await fetch('/api/thoughts/' + item.id);
+        if (resp.ok) { const full = await resp.json(); modalContent.textContent = full.content; }
+      } catch (e) { /* keep preview on error */ }
+    }
   }
   function closeModal() { modalOverlay.classList.remove('open'); document.removeEventListener('keydown', onModalKey); }
   function onModalKey(e) { if (e.key==='Escape') closeModal(); }

@@ -70,9 +70,10 @@
     .contact-item:hover { background:var(--bg-raised); }
     .contact-item.stale { border-left-color:var(--yellow); }
     .contact-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
-    .contact-identity { display:flex; align-items:flex-start; gap:12px; flex:1; }
+    .contact-identity { display:flex; align-items:flex-start; gap:12px; flex:1; cursor:pointer; }
+    .contact-identity:hover .contact-name { color:var(--teal); }
     .contact-avatar { width:34px; height:34px; border-radius:50%; background:var(--teal-bg); border:1px solid rgba(15,191,166,0.3); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; color:var(--teal); flex-shrink:0; text-transform:uppercase; }
-    .contact-name { font-size:13px; font-weight:400; color:var(--text); }
+    .contact-name { font-size:13px; font-weight:400; color:var(--text); transition:color .15s; }
     .contact-meta { font-size:10px; color:var(--text-2); letter-spacing:.04em; margin-top:3px; display:flex; gap:10px; flex-wrap:wrap; }
     .stale-label { color:var(--yellow); }
     .never-label  { color:var(--red); }
@@ -89,10 +90,55 @@
     .empty { font-size:11px; color:var(--text-3); font-style:italic; padding:20px 0; }
     footer { padding:12px 40px; border-top:1px solid var(--border); font-size:10px; color:var(--text-3); letter-spacing:.07em; flex-shrink:0; }
     ::-webkit-scrollbar { width:3px; } ::-webkit-scrollbar-track { background:var(--bg); } ::-webkit-scrollbar-thumb { background:var(--border); }
+
+    /* Contact detail modal */
+    .modal-overlay { position:fixed; inset:0; background:rgba(10,25,40,0.65); backdrop-filter:blur(3px); z-index:1000; display:flex; align-items:flex-start; justify-content:center; padding:48px 20px 40px; overflow-y:auto; }
+    .modal-overlay.hidden { display:none; }
+    .modal { background:var(--bg-card); border:1px solid var(--border); border-top:2px solid var(--teal); width:100%; max-width:720px; display:flex; flex-direction:column; max-height:calc(100vh - 88px); }
+    .modal-head { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--border-sub); flex-shrink:0; }
+    .modal-head-identity { display:flex; align-items:center; gap:12px; }
+    .modal-avatar { width:40px; height:40px; border-radius:50%; background:var(--teal-bg); border:1px solid rgba(15,191,166,0.3); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:500; color:var(--teal); flex-shrink:0; text-transform:uppercase; }
+    .modal-contact-name { font-size:15px; color:var(--text); }
+    .modal-contact-meta { font-size:10px; color:var(--text-2); letter-spacing:.04em; margin-top:3px; display:flex; gap:10px; flex-wrap:wrap; }
+    .modal-close { background:none; border:none; color:var(--text-3); font-size:20px; line-height:1; cursor:pointer; padding:4px 8px; transition:color .15s; font-family:var(--mono); }
+    .modal-close:hover { color:var(--text); }
+    .modal-body { overflow-y:auto; padding:20px; flex:1; }
+    .modal-section-label { font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border-sub); }
+    .modal-profile-notes { font-size:11px; color:var(--text-2); white-space:pre-wrap; line-height:1.7; padding:12px 14px; background:var(--bg-raised); border:1px solid var(--border-sub); margin-bottom:24px; }
+    .interaction-list { display:flex; flex-direction:column; gap:8px; }
+    .interaction-entry { padding:10px 14px; background:var(--bg-raised); border:1px solid var(--border-sub); border-left:2px solid var(--teal); }
+    .interaction-date { font-size:10px; color:var(--text-3); letter-spacing:.04em; margin-bottom:4px; }
+    .interaction-content { font-size:11px; color:var(--text-2); line-height:1.7; white-space:pre-wrap; word-break:break-word; }
+    .no-interactions { font-size:11px; color:var(--text-3); font-style:italic; padding:8px 0; }
   </style>
 </head>
 <body>
 <div id="toast"></div>
+
+<!-- Contact detail modal -->
+<div class="modal-overlay hidden" id="contactModal">
+  <div class="modal" id="modalBox">
+    <div class="modal-head">
+      <div class="modal-head-identity">
+        <div class="modal-avatar" id="modalAvatar"></div>
+        <div>
+          <div class="modal-contact-name" id="modalContactName"></div>
+          <div class="modal-contact-meta" id="modalContactMeta"></div>
+        </div>
+      </div>
+      <button class="modal-close" id="modalCloseBtn">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="modalProfileSection">
+        <div class="modal-section-label">Profile notes</div>
+        <div class="modal-profile-notes" id="modalProfileNotes"></div>
+      </div>
+      <div class="modal-section-label" id="modalInteractionsLabel">Interactions</div>
+      <div class="interaction-list" id="modalInteractionList"></div>
+    </div>
+  </div>
+</div>
+
 <header>
   <div class="wordmark">Mind<em>store</em></div>
 </header>
@@ -139,6 +185,79 @@
   function daysSince(iso) { if (!iso) return null; return Math.floor((Date.now()-new Date(iso))/86400000); }
   function initials(name) { return name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
 
+  // Parse notes into profile notes and individual interaction entries.
+  // Interaction entries start with "YYYY-MM-DD HH:MM UTC:" or "YYYY-MM-DD HH:MM:SS UTC:".
+  const INTERACTION_RE = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})? UTC): ([\s\S]*)$/;
+
+  function parseNotes(notes) {
+    if (!notes) return { profile: '', interactions: [] };
+    const chunks = notes.split(/\n\n+/);
+    const interactions = [];
+    const profileChunks = [];
+    for (const chunk of chunks) {
+      const trimmed = chunk.trim();
+      if (!trimmed) continue;
+      const m = trimmed.match(INTERACTION_RE);
+      if (m) {
+        interactions.push({ date: m[1], content: m[2].trim() });
+      } else {
+        profileChunks.push(trimmed);
+      }
+    }
+    // Newest first
+    interactions.sort((a, b) => b.date.localeCompare(a.date));
+    return { profile: profileChunks.join('\n\n'), interactions };
+  }
+
+  function openModal(contact) {
+    const { profile, interactions } = parseNotes(contact.notes);
+    const ds = daysSince(contact.last_contact_at);
+    const lastLabel = ds === null ? 'never contacted' : ds === 0 ? 'today' : ds + 'd ago';
+    const details = [contact.email, contact.phone, contact.company].filter(Boolean);
+
+    document.getElementById('modalAvatar').textContent = initials(contact.name);
+    document.getElementById('modalContactName').textContent = contact.name;
+
+    const metaEl = document.getElementById('modalContactMeta');
+    metaEl.innerHTML =
+      details.map(d => '<span>' + esc(d) + '</span>').join('') +
+      '<span>last: ' + esc(lastLabel) + '</span>' +
+      (contact.tags || []).map(t => '<span>#' + esc(t) + '</span>').join('');
+
+    const profileSection = document.getElementById('modalProfileSection');
+    if (profile) {
+      profileSection.style.display = 'block';
+      document.getElementById('modalProfileNotes').textContent = profile;
+    } else {
+      profileSection.style.display = 'none';
+    }
+
+    const interactionList = document.getElementById('modalInteractionList');
+    const label = document.getElementById('modalInteractionsLabel');
+    label.textContent = 'Interactions' + (interactions.length ? ' (' + interactions.length + ')' : '');
+
+    if (interactions.length) {
+      interactionList.innerHTML = interactions.map(i =>
+        '<div class="interaction-entry">' +
+          '<div class="interaction-date">' + esc(i.date) + '</div>' +
+          '<div class="interaction-content">' + esc(i.content) + '</div>' +
+        '</div>'
+      ).join('');
+    } else {
+      interactionList.innerHTML = '<div class="no-interactions">no interactions logged yet</div>';
+    }
+
+    document.getElementById('contactModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    // Scroll modal body to top
+    document.querySelector('.modal-body').scrollTop = 0;
+  }
+
+  function closeModal() {
+    document.getElementById('contactModal').classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
   async function api(method, path, body) {
     const opts = {method, headers:{'Content-Type':'application/json'}};
     if (body) opts.body = JSON.stringify(body);
@@ -177,7 +296,7 @@
       const details = [c.email,c.phone,c.company].filter(Boolean).map(v=>esc(v)).join(' &middot; ');
       el.innerHTML =
         '<div class="contact-header">'+
-          '<div class="contact-identity">'+
+          '<div class="contact-identity" data-cid="'+c.id+'">'+
             '<div class="contact-avatar">'+initials(c.name)+'</div>'+
             '<div>'+
               '<div class="contact-name">'+esc(c.name)+'</div>'+
@@ -227,6 +346,14 @@
       listEl.appendChild(el);
     });
 
+    // Open modal on identity click
+    listEl.querySelectorAll('.contact-identity').forEach(identity => {
+      identity.addEventListener('click', () => {
+        const contact = allContacts.find(c => c.id === identity.dataset.cid);
+        if (contact) openModal(contact);
+      });
+    });
+
     listEl.querySelectorAll('.log-btn').forEach(btn => btn.addEventListener('click', () => {
       const row = document.getElementById('logRow-'+btn.dataset.id);
       row.style.display = row.style.display==='none' ? 'flex' : 'none';
@@ -266,6 +393,12 @@
     catch(e) { toast(e.message,'error'); }
   });
   document.getElementById('newName').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('addBtn').click(); });
+
+  // Modal close handlers
+  document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+  document.getElementById('contactModal').addEventListener('click', e => { if (e.target === document.getElementById('contactModal')) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
   loadContacts();
 </script>
 <script src="/nav.js"></script>

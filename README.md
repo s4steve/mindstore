@@ -368,6 +368,146 @@ Replace `your-mcp-auth-token` with the `MCP_AUTH_TOKEN` value from your `.env` f
 
 ---
 
+## Network Connectivity for MCP
+
+### Understanding the Setup
+
+**Important:** Bearer token authentication secures the MCP connection but does **not** make the server reachable over the internet. Network connectivity and authentication are separate concerns.
+
+| Scenario | Network Path | Works without Proxy? | Recommended? |
+|---|---|---|---|
+| Claude Desktop on same WiFi as server (e.g., home network) | `http://192.168.x.x:8001/mcp` | ✅ Yes | ✓ Simple, no setup |
+| Claude Desktop and server both on Tailscale | `http://<tailscale-ip>:8001/mcp` | ✅ Yes | ✓ **Recommended for remote** |
+| Claude Desktop on different network, no VPN | Would need reverse proxy | ❌ No | ✗ Use proxy or VPN first |
+| Claude Desktop and server both on WireGuard/OpenVPN | `http://<vpn-ip>:8001/mcp` | ✅ Yes | ✓ Alternative to Tailscale |
+
+### Option 1: Same Local Network (Simple)
+
+If your MCP server and Claude Desktop are on the same local network:
+
+1. Find the server's local IP:
+   ```bash
+   # On the Raspberry Pi or host running the MCP server
+   hostname -I
+   # or on macOS
+   ipconfig getifaddr en0
+   ```
+
+2. Configure Claude Desktop with the local IP:
+   ```json
+   {
+     "mcpServers": {
+       "mindstore": {
+         "type": "streamable-http",
+         "url": "http://192.168.1.50:8001/mcp",
+         "headers": {
+           "Authorization": "Bearer your-mcp-auth-token"
+         }
+       }
+     }
+   }
+   ```
+
+3. Verify connectivity from Claude Desktop's machine:
+   ```bash
+   curl -H "Authorization: Bearer your-mcp-auth-token" http://192.168.1.50:8001/mcp
+   ```
+
+### Option 2: Tailscale (Recommended for Remote Access)
+
+Tailscale creates a secure private network across all your devices, allowing Claude Desktop and the MCP server to connect from anywhere without exposing them to the internet.
+
+#### Setup Tailscale
+
+1. **On the MCP server host:**
+   ```bash
+   # Install Tailscale
+   curl -fsSL https://tailscale.com/install.sh | sh
+
+   # Authenticate and join your Tailscale network
+   sudo tailscale up
+
+   # Get the Tailscale IP
+   tailscale ip -4
+   # Example output: 100.123.45.67
+   ```
+
+2. **On the machine running Claude Desktop:**
+   ```bash
+   # Install Tailscale and join the same network
+   curl -fsSL https://tailscale.com/install.sh | sh
+   sudo tailscale up
+   ```
+
+3. **Configure Claude Desktop:**
+   ```json
+   {
+     "mcpServers": {
+       "mindstore": {
+         "type": "streamable-http",
+         "url": "http://100.123.45.67:8001/mcp",
+         "headers": {
+           "Authorization": "Bearer your-mcp-auth-token"
+         }
+       }
+     }
+   }
+   ```
+
+4. **Verify the connection:**
+   ```bash
+   curl -H "Authorization: Bearer your-mcp-auth-token" http://100.123.45.67:8001/mcp
+   ```
+
+#### Why Tailscale?
+
+- **No port forwarding** — the server never exposes itself to the internet
+- **Encrypted end-to-end** — traffic is encrypted by Tailscale in addition to your Bearer token
+- **Works across networks** — use the MCP server from anywhere: home, office, mobile
+- **Firewall-friendly** — works through most firewalls and NAT
+- **Free tier** — supports up to 3 devices for personal use
+
+### Option 3: Reverse Proxy (For Public Deployment)
+
+If you need to expose the MCP server publicly (not recommended), use a reverse proxy with TLS:
+
+```nginx
+# Example: nginx reverse proxy
+server {
+    listen 443 ssl;
+    server_name mindstore.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/mindstore.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/mindstore.example.com/privkey.pem;
+
+    location /mcp {
+        proxy_pass http://localhost:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+Then configure Claude Desktop:
+```json
+{
+  "mcpServers": {
+    "mindstore": {
+      "type": "streamable-http",
+      "url": "https://mindstore.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer your-mcp-auth-token"
+      }
+    }
+  }
+}
+```
+
+---
+
 ## Docker Commands
 
 ```bash
@@ -389,6 +529,88 @@ docker compose down
 
 # Stop and remove data (destructive)
 docker compose down -v
+```
+
+---
+
+## Troubleshooting MCP Connection Issues
+
+### Claude Desktop can't connect to MCP server
+
+**Problem:** Getting connection timeout or "host unreachable" errors.
+
+**Check 1: Is the MCP server running?**
+```bash
+# Check if port 8001 is listening
+netstat -tuln | grep 8001
+# or
+ss -tuln | grep 8001
+```
+
+**Check 2: Can you reach the server from the same machine?**
+```bash
+# Without auth (to test network connectivity first)
+curl -v http://localhost:8001/mcp
+
+# With auth (when testing from command line)
+curl -H "Authorization: Bearer your-mcp-auth-token" http://localhost:8001/mcp
+```
+
+**Check 3: If using local IP, is it correct?**
+```bash
+# Get your server's actual local IP
+hostname -I
+# or on macOS
+ipconfig getifaddr en0
+```
+Update Claude Desktop config to use the correct IP.
+
+**Check 4: If using Tailscale, verify both devices are connected**
+```bash
+# On both machines, check Tailscale status
+tailscale status
+
+# Ping from Claude Desktop machine to MCP server's Tailscale IP
+ping 100.x.x.x
+```
+
+**Check 5: Firewall blocking port 8001?**
+- Check local firewall rules
+- If on a home network, router may need port forwarding (only for local network, not internet)
+- Tailscale bypasses firewall issues by creating a private network
+
+### "401 Unauthorized" errors
+
+**Problem:** Connection reaches the server but returns 401.
+
+**Check:** Is `MCP_AUTH_TOKEN` set correctly in both `.env` and Claude Desktop config?
+
+```bash
+# On the server, check if token is configured
+docker compose logs mcp_server | grep "Bearer token"
+
+# Should see either:
+# "Bearer token authentication enabled." (good)
+# "MCP_AUTH_TOKEN is not set" (warning, but still accepts connections)
+```
+
+**Verify the token matches:**
+- Value in `.env` file: `MCP_AUTH_TOKEN=your-actual-token`
+- Value in Claude Desktop config: `"Authorization": "Bearer your-actual-token"`
+
+### Claude Code (CLI) connection issues
+
+For Claude Code (the CLI tool), use the same network path and Bearer token:
+
+```bash
+claude mcp add --transport streamable-http --scope global \
+  --header "Authorization: Bearer your-mcp-auth-token" \
+  mindstore http://100.x.x.x:8001/mcp
+```
+
+Then verify:
+```bash
+claude mcp list
 ```
 
 ---

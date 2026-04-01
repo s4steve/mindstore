@@ -48,6 +48,7 @@ services:
       API_KEY: ${API_KEY}
       MCP_HOST: ${MCP_HOST:-0.0.0.0}
       MCP_PORT: ${MCP_PORT:-8001}
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
     depends_on:
       db:
         condition: service_healthy

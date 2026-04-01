@@ -28,6 +28,22 @@ The ingestion service embeds content locally using `all-MiniLM-L6-v2` (384 dimen
 
 ---
 
+## Authentication
+
+Mindstore uses two distinct authentication methods for different purposes:
+
+| Service | Auth Method | Env Variable | Purpose |
+|---|---|---|---|
+| **REST API** (ingestion, port 8000) | `X-API-Key` header | `API_KEY` | Authenticate requests to ingest, search, manage tasks/contacts/home |
+| **MCP Server** (port 8001) | Bearer token (`Authorization: Bearer <token>`) | `MCP_AUTH_TOKEN` | Authenticate MCP client connections (Claude Desktop, Claude Code) |
+| **Web UI** (port 3000) | HTTP Basic Auth | `WEB_USERNAME` / `WEB_PASSWORD` | Authenticate browser access |
+
+- Set `API_KEY` to a strong secret for service-to-service authentication
+- Set `MCP_AUTH_TOKEN` to a strong secret for MCP client access (if left empty, the server warns at startup but accepts unauthenticated connections)
+- Set `WEB_USERNAME` / `WEB_PASSWORD` for web UI access
+
+---
+
 ## Setup
 
 ### 1. Clone and configure
@@ -40,7 +56,8 @@ cp .env.example .env
 
 Edit `.env` and set strong values for:
 - `POSTGRES_PASSWORD`
-- `API_KEY`
+- `API_KEY` (service-to-service authentication: MCP server → ingestion service)
+- `MCP_AUTH_TOKEN` (bearer token for MCP client connections — used by Claude Desktop / Claude Code)
 - `WEB_USERNAME` / `WEB_PASSWORD` (web UI basic auth)
 
 ### 2. Build and start
@@ -108,7 +125,9 @@ The web UI is served on port 3000 and requires HTTP basic auth (`WEB_USERNAME` /
 
 ## REST API
 
-All endpoints (except `/health`) require `X-API-Key` header.
+All endpoints (except `/health`) require `X-API-Key` header. This header authenticates requests to the **ingestion service** (port 8000).
+
+**Note:** The MCP server (port 8001) uses **Bearer token authentication** via the `Authorization: Bearer <token>` header — this is separate from the REST API key. See the [Claude Code](#claude-code--global-mcp-setup) and [Claude Desktop](#claude-desktop) sections for MCP configuration.
 
 ### Knowledge (thoughts, notes, events)
 
@@ -286,8 +305,8 @@ Adding mindstore globally makes the tools available in every project without any
 ### Option 1: CLI (recommended)
 
 ```bash
-claude mcp add --transport http --scope global \
-  --header "X-API-Key: your-api-key" \
+claude mcp add --transport streamable-http --scope global \
+  --header "Authorization: Bearer your-mcp-auth-token" \
   mindstore http://<pi-tailscale-ip>:8001/mcp
 ```
 
@@ -311,10 +330,10 @@ Add the following to `~/.claude.json` under the `"mcpServers"` key (create the k
 {
   "mcpServers": {
     "mindstore": {
-      "type": "http",
+      "type": "streamable-http",
       "url": "http://<pi-tailscale-ip>:8001/mcp",
       "headers": {
-        "X-API-Key": "your-api-key"
+        "Authorization": "Bearer your-mcp-auth-token"
       }
     }
   }
@@ -322,6 +341,8 @@ Add the following to `~/.claude.json` under the `"mcpServers"` key (create the k
 ```
 
 After editing the file, restart Claude Code for the tools to appear.
+
+> **Note:** Use the `MCP_AUTH_TOKEN` value from your `.env` file. If `MCP_AUTH_TOKEN` is not set on the server, the MCP server will warn at startup but still accept unauthenticated connections. For production deployments, always set a strong `MCP_AUTH_TOKEN`.
 
 ---
 
@@ -333,17 +354,17 @@ Add to `claude_desktop_config.json` (location varies by OS — check Claude Desk
 {
   "mcpServers": {
     "mindstore": {
-      "type": "http",
+      "type": "streamable-http",
       "url": "http://<pi-tailscale-ip>:8001/mcp",
       "headers": {
-        "X-API-Key": "your-api-key"
+        "Authorization": "Bearer your-mcp-auth-token"
       }
     }
   }
 }
 ```
 
-Restart Claude Desktop after saving.
+Replace `your-mcp-auth-token` with the `MCP_AUTH_TOKEN` value from your `.env` file. Restart Claude Desktop after saving.
 
 ---
 

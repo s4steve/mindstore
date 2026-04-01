@@ -1,5 +1,7 @@
 # Environment — never commit secrets
 .env
+.env.local
+.env.*.local
 
 # Python
 __pycache__/
@@ -23,6 +25,20 @@ postgres_data/
 mindstore-claude-code-prompt.md
 Claude.md
 
+# Local configuration and secrets
+settings.local.json
+.env.secrets
+**/secrets/
+**/local/
+
+# Sensitive certificate and credential files
+*.crt
+*.cert
+*.key
+*.pem
+*.p12
+*.pfx
+
 # OS
 .DS_Store
 Thumbs.db
@@ -34,3 +50,8 @@ htmlcov/
 
 # Personal data exports — never commit
 LinkedIn/
+
+# Database dumps and backups with potentially sensitive data
+*.sql
+*.sql.gz
+*.dump

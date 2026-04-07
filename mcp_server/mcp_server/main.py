@@ -39,8 +39,9 @@ register_tools(mcp)
 
 class BearerTokenMiddleware:
     """
-    Pure ASGI middleware that validates Authorization: Bearer <token> on all
-    incoming connections: HTTP GET, HTTP POST, and WebSocket upgrades.
+    ASGI middleware that validates authorization via:
+    1. Authorization: Bearer <token> header
+    2. ?token=<token> query parameter
 
     If MCP_AUTH_TOKEN is None (not configured), the middleware is a no-op
     and every request passes through unconditionally.
@@ -56,7 +57,7 @@ class BearerTokenMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # Extract Authorization header from the ASGI scope
+        # Try Authorization header first
         headers = dict(scope.get("headers", []))
         auth_header = headers.get(b"authorization", b"").decode("latin-1")
 
@@ -65,6 +66,16 @@ class BearerTokenMiddleware:
             if provided_token == self.token:
                 await self.app(scope, receive, send)
                 return
+
+        # Try query parameter as fallback
+        query_string = scope.get("query_string", b"").decode("latin-1")
+        if query_string:
+            for param in query_string.split("&"):
+                if "=" in param:
+                    key, value = param.split("=", 1)
+                    if key == "token" and value == self.token:
+                        await self.app(scope, receive, send)
+                        return
 
         # Token missing or invalid — return 401
         await self._reject(scope, send)

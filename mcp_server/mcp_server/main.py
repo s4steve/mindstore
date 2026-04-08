@@ -112,9 +112,6 @@ def main():
             "Set MCP_AUTH_TOKEN in production."
         )
 
-    # Initialize server resources once before uvicorn starts
-    asyncio.run(_initialize_server())
-
     starlette_app = mcp.streamable_http_app()
     protected_app = BearerTokenMiddleware(starlette_app, MCP_AUTH_TOKEN)
 
@@ -126,7 +123,11 @@ def main():
     )
     server = uvicorn.Server(config)
 
-    asyncio.run(server.serve())
+    async def _run():
+        await _initialize_server()
+        await server.serve()
+
+    asyncio.run(_run())
 
 
 if __name__ == "__main__":

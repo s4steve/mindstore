@@ -20,6 +20,9 @@ on:
       - "mcp_server/**"
       - "webapp/**"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     name: Build ${{ matrix.service }}

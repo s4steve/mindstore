@@ -1,10 +1,14 @@
+import hmac
 import os
 import logging
 from contextlib import asynccontextmanager
 
 import asyncpg
-from fastapi import FastAPI, HTTPException, Security, Depends
+from fastapi import FastAPI, HTTPException, Request, Security, Depends
 from fastapi.security.api_key import APIKeyHeader
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from embedder import SentenceTransformerEmbedder, EmbedderBase
 from . import db as db_module
@@ -34,7 +38,7 @@ _embedder: EmbedderBase | None = None
 
 
 async def get_api_key(key: str = Security(api_key_header)) -> str:
-    if key != API_KEY:
+    if not hmac.compare_digest(key, API_KEY):
         raise HTTPException(status_code=403, detail="Invalid API key")
     return key
 
@@ -51,7 +55,14 @@ async def lifespan(app: FastAPI):
     await _db_pool.close()
 
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Mindstore Ingestion", lifespan=lifespan)
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
 
 def get_pool() -> asyncpg.Pool:
@@ -63,8 +74,9 @@ def get_embedder() -> EmbedderBase:
 
 
 @app.post("/ingest", response_model=IngestResponse, dependencies=[Depends(get_api_key)])
-async def ingest_endpoint(request: IngestRequest):
-    return await pipeline.ingest(request, get_pool(), get_embedder())
+@limiter.limit("30/minute")
+async def ingest_endpoint(request: Request, ingest_req: IngestRequest):
+    return await pipeline.ingest(ingest_req, get_pool(), get_embedder())
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -88,7 +100,8 @@ async def recent(limit: int = 10, content_type: str | None = None):
 
 
 @app.get("/search", dependencies=[Depends(get_api_key)])
-async def search_endpoint(q: str, limit: int = 10, content_type: str | None = None):
+@limiter.limit("60/minute")
+async def search_endpoint(request: Request, q: str, limit: int = 10, content_type: str | None = None):
     embedding = get_embedder().embed(q)
     return await db_module.cross_table_search(get_pool(), embedding=embedding, limit=limit, content_type=content_type)
 
@@ -137,9 +150,10 @@ async def delete_thought(id: str):
 
 
 @app.post("/ingest/batch", response_model=BulkIngestResponse, dependencies=[Depends(get_api_key)])
-async def ingest_batch(request: BulkIngestRequest):
+@limiter.limit("5/minute")
+async def ingest_batch(request: Request, batch_req: BulkIngestRequest):
     results = []
-    for entry in request.entries:
+    for entry in batch_req.entries:
         result = await pipeline.ingest(entry, get_pool(), get_embedder())
         results.append(result)
     return BulkIngestResponse(

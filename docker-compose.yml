@@ -23,7 +23,7 @@ services:
       dockerfile: ingestion/Dockerfile
     restart: unless-stopped
     ports:
-      - "${INGESTION_PORT:-8000}:${INGESTION_PORT:-8000}"
+      - "127.0.0.1:${INGESTION_PORT:-8000}:${INGESTION_PORT:-8000}"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       API_KEY: ${API_KEY}

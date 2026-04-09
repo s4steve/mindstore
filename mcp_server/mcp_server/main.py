@@ -1,3 +1,4 @@
+import hmac
 import os
 import logging
 import asyncio
@@ -18,6 +19,12 @@ EMBEDDER_MODEL = os.environ.get("EMBEDDER_MODEL", "all-MiniLM-L6-v2")
 MCP_HOST = os.environ.get("MCP_HOST", "0.0.0.0")
 MCP_PORT = int(os.environ.get("MCP_PORT", "8001"))
 MCP_AUTH_TOKEN = os.environ.get("MCP_AUTH_TOKEN") or None
+if not MCP_AUTH_TOKEN:
+    raise RuntimeError(
+        "MCP_AUTH_TOKEN is not set. "
+        "The MCP server refuses to start without authentication. "
+        "Set MCP_AUTH_TOKEN in your .env file."
+    )
 
 
 async def _initialize_server():
@@ -42,9 +49,6 @@ class BearerTokenMiddleware:
     ASGI middleware that validates authorization via:
     1. Authorization: Bearer <token> header
     2. ?token=<token> query parameter
-
-    If MCP_AUTH_TOKEN is None (not configured), the middleware is a no-op
-    and every request passes through unconditionally.
     """
 
     def __init__(self, app, token: str | None):
@@ -63,7 +67,7 @@ class BearerTokenMiddleware:
 
         if auth_header.lower().startswith("bearer "):
             provided_token = auth_header[7:]
-            if provided_token == self.token:
+            if hmac.compare_digest(provided_token, self.token):
                 await self.app(scope, receive, send)
                 return
 
@@ -73,7 +77,7 @@ class BearerTokenMiddleware:
             for param in query_string.split("&"):
                 if "=" in param:
                     key, value = param.split("=", 1)
-                    if key == "token" and value == self.token:
+                    if key == "token" and hmac.compare_digest(value, self.token):
                         await self.app(scope, receive, send)
                         return
 
@@ -103,14 +107,7 @@ def main():
 
     logging.basicConfig(level=logging.INFO)
 
-    if MCP_AUTH_TOKEN:
-        logger.info("MCP server: Bearer token authentication enabled.")
-    else:
-        logger.warning(
-            "MCP server: MCP_AUTH_TOKEN is not set. "
-            "The server is accepting unauthenticated connections. "
-            "Set MCP_AUTH_TOKEN in production."
-        )
+    logger.info("MCP server: Bearer token authentication enabled.")
 
     starlette_app = mcp.streamable_http_app()
     protected_app = BearerTokenMiddleware(starlette_app, MCP_AUTH_TOKEN)

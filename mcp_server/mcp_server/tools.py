@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 import httpx
 from mcp.server.fastmcp import FastMCP
 
@@ -169,7 +171,7 @@ def register_tools(mcp: FastMCP) -> None:
     ) -> list[dict]:
         """List tasks. Filter by status (open/done/cancelled), category, or tasks due within N days."""
         params = {k: v for k, v in locals().items() if v is not None}
-        path = "/tasks?" + "&".join(f"{k}={v}" for k, v in params.items()) if params else "/tasks"
+        path = f"/tasks?{urlencode(params)}" if params else "/tasks"
         return await _call_ingestion("GET", path)
 
     # ── Contacts ───────────────────────────────────────────────────────────────
@@ -211,7 +213,7 @@ def register_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def list_contacts(reach_out_days: int | None = None) -> list[dict]:
         """List contacts. Pass reach_out_days to filter contacts not reached in that many days."""
-        path = f"/contacts?reach_out_days={reach_out_days}" if reach_out_days else "/contacts"
+        path = f"/contacts?{urlencode({'reach_out_days': reach_out_days})}" if reach_out_days else "/contacts"
         return await _call_ingestion("GET", path)
 
     # ── Home items ─────────────────────────────────────────────────────────────
@@ -252,7 +254,7 @@ def register_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def list_home_items(due_soon_days: int | None = None) -> list[dict]:
         """List home maintenance items. Pass due_soon_days to filter items due within N days."""
-        path = f"/home?due_soon_days={due_soon_days}" if due_soon_days else "/home"
+        path = f"/home?{urlencode({'due_soon_days': due_soon_days})}" if due_soon_days else "/home"
         return await _call_ingestion("GET", path)
 
     # ── Dashboard ──────────────────────────────────────────────────────────────

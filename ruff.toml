@@ -1,0 +1,23 @@
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "S",      # flake8-bandit (security)
+    "SIM",    # flake8-simplify
+]
+ignore = [
+    "S101",   # allow assert in tests
+    "S104",   # binding to 0.0.0.0 is intentional in Docker containers
+]
+
+[lint.per-file-ignores]
+"tests/**" = ["S101", "S106"]
+"**/alembic/**" = ["E501"]
+"ingestion/ingestion/db/**" = ["S608"]  # dynamic SQL uses allowlisted column names

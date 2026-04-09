@@ -3,7 +3,9 @@ Integration tests for semantic search via the MCP server search endpoint.
 Requires the full Docker stack to be running:
     docker compose up -d
 """
+
 import os
+
 import httpx
 import pytest
 

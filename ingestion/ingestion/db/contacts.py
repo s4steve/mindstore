@@ -2,10 +2,12 @@ import datetime
 
 import asyncpg
 
-from ._helpers import _vec, _build_set_clause
+from ._helpers import _build_set_clause, _vec
 
 
-async def create_contact(pool: asyncpg.Pool, embedding: list[float] | None = None, **kwargs) -> dict:
+async def create_contact(
+    pool: asyncpg.Pool, embedding: list[float] | None = None, **kwargs
+) -> dict:
     row = await pool.fetchrow(
         """
         INSERT INTO contacts (name, email, phone, company, notes, tags, embedding)
@@ -13,8 +15,12 @@ async def create_contact(pool: asyncpg.Pool, embedding: list[float] | None = Non
         RETURNING id::text, name, email, phone, company, last_contact_at,
                   notes, tags, created_at, updated_at
         """,
-        kwargs["name"], kwargs.get("email"), kwargs.get("phone"),
-        kwargs.get("company"), kwargs.get("notes"), kwargs.get("tags", []),
+        kwargs["name"],
+        kwargs.get("email"),
+        kwargs.get("phone"),
+        kwargs.get("company"),
+        kwargs.get("notes"),
+        kwargs.get("tags", []),
         _vec(embedding),
     )
     return dict(row)
@@ -48,14 +54,16 @@ async def get_contact(pool: asyncpg.Pool, id: str) -> dict | None:
     return dict(row) if row else None
 
 
-async def update_contact(pool: asyncpg.Pool, id: str, embedding: list[float] | None = None, **kwargs) -> dict | None:
+async def update_contact(
+    pool: asyncpg.Pool, id: str, embedding: list[float] | None = None, **kwargs
+) -> dict | None:
     sets, values, idx = _build_set_clause("contacts", kwargs, embedding)
     if not sets:
         return await get_contact(pool, id)
     values.append(id)
     row = await pool.fetchrow(
         f"""
-        UPDATE contacts SET {', '.join(sets)}
+        UPDATE contacts SET {", ".join(sets)}
         WHERE id = ${idx}::uuid
         RETURNING id::text, name, email, phone, company, last_contact_at,
                   notes, tags, created_at, updated_at
@@ -70,7 +78,9 @@ async def delete_contact(pool: asyncpg.Pool, id: str) -> bool:
     return result == "DELETE 1"
 
 
-async def log_interaction(pool: asyncpg.Pool, id: str, note: str, embedding: list[float] | None = None) -> dict | None:
+async def log_interaction(
+    pool: asyncpg.Pool, id: str, note: str, embedding: list[float] | None = None
+) -> dict | None:
     timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     row = await pool.fetchrow(
         """
@@ -85,6 +95,9 @@ async def log_interaction(pool: asyncpg.Pool, id: str, note: str, embedding: lis
         RETURNING id::text, name, email, phone, company, last_contact_at,
                   notes, tags, created_at, updated_at
         """,
-        id, timestamp, note, _vec(embedding),
+        id,
+        timestamp,
+        note,
+        _vec(embedding),
     )
     return dict(row) if row else None

@@ -8,7 +8,9 @@ and the tools list is correct.
 Full tool invocation testing requires an MCP client; these tests verify
 the server is up and discoverable.
 """
+
 import os
+
 import httpx
 import pytest
 

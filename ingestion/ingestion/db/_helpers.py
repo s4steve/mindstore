@@ -11,13 +11,17 @@ def _vec(embedding: list[float] | None) -> str | None:
 # Column names are validated against these sets before being
 # interpolated into SQL to prevent injection if the code is refactored.
 _ALLOWED_COLUMNS: dict[str, frozenset[str]] = {
-    "tasks": frozenset({"title", "notes", "status", "priority", "due_date", "recurrence_days", "category", "tags"}),
+    "tasks": frozenset(
+        {"title", "notes", "status", "priority", "due_date", "recurrence_days", "category", "tags"}
+    ),
     "contacts": frozenset({"name", "email", "phone", "company", "notes", "tags"}),
     "home_items": frozenset({"name", "notes", "interval_days", "next_due_at", "tags"}),
 }
 
 
-def _build_set_clause(table: str, kwargs: dict, embedding: list[float] | None = None) -> tuple[list[str], list, int]:
+def _build_set_clause(
+    table: str, kwargs: dict, embedding: list[float] | None = None
+) -> tuple[list[str], list, int]:
     """Build parameterised SET clause fragments for an UPDATE statement.
 
     Returns (set_fragments, values, next_param_index).

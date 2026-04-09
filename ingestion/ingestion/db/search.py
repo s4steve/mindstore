@@ -138,10 +138,7 @@ async def get_items_by_tag(pool: asyncpg.Pool, tag: str) -> list[dict]:
         """,
         tag,
     )
-    return [
-        {**dict(r), "created_at": r["created_at"].isoformat()}
-        for r in rows
-    ]
+    return [{**dict(r), "created_at": r["created_at"].isoformat()} for r in rows]
 
 
 async def get_related_tags(pool: asyncpg.Pool, tag: str, limit: int = 10) -> list[dict]:
@@ -173,9 +170,7 @@ async def get_related_tags(pool: asyncpg.Pool, tag: str, limit: int = 10) -> lis
     return [{"tag": r["related_tag"], "co_occurrence": r["co_occurrence"]} for r in rows]
 
 
-async def get_suggested_connections(
-    pool: asyncpg.Pool, tag: str, limit: int = 8
-) -> list[dict]:
+async def get_suggested_connections(pool: asyncpg.Pool, tag: str, limit: int = 8) -> list[dict]:
     """Find items semantically similar to a tag's centroid but NOT tagged with it."""
     rows = await pool.fetch(
         """
@@ -287,9 +282,9 @@ async def get_dashboard(pool: asyncpg.Pool) -> dict:
         """
     )
     return {
-        "overdue_tasks":     [dict(r) for r in overdue_tasks],
-        "due_soon_tasks":    [dict(r) for r in due_soon_tasks],
-        "overdue_home":      [dict(r) for r in overdue_home],
-        "due_soon_home":     [dict(r) for r in due_soon_home],
+        "overdue_tasks": [dict(r) for r in overdue_tasks],
+        "due_soon_tasks": [dict(r) for r in due_soon_tasks],
+        "overdue_home": [dict(r) for r in overdue_home],
+        "due_soon_home": [dict(r) for r in due_soon_home],
         "contacts_to_reach": [dict(r) for r in contacts_to_reach],
     }

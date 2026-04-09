@@ -1,6 +1,6 @@
-import sys
-import os
 import asyncio
+import os
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../ingestion"))
@@ -58,7 +58,6 @@ def test_ingest_note_chunks_by_paragraph():
 
 
 def test_ingest_sets_parent_id_for_multi_chunk():
-    call_count = 0
     ids = ["parent-uuid", "child-uuid"]
 
     async def mock_insert(**kwargs):

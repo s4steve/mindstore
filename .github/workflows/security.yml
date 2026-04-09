@@ -1,0 +1,35 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 0 * * 0" # Every Sunday at midnight
+
+jobs:
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit ingestion dependencies
+        run: pip-audit -r ingestion/requirements.txt
+
+      - name: Audit MCP server dependencies
+        run: pip-audit -r mcp_server/requirements.txt
+
+      - name: Audit embedder dependencies
+        run: pip-audit -r embedder/requirements.txt
+
+      - name: Audit test dependencies
+        run: pip-audit -r tests/requirements.txt

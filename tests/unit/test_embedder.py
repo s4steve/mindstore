@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../embedder"))
 
@@ -46,7 +46,7 @@ def test_similar_texts_are_closer():
     e_unrelated = embedder.embed("The stock market crashed")
 
     def cosine(a, b):
-        dot = sum(x * y for x, y in zip(a, b))
+        dot = sum(x * y for x, y in zip(a, b, strict=True))
         na = math.sqrt(sum(x * x for x in a))
         nb = math.sqrt(sum(y * y for y in b))
         return dot / (na * nb)

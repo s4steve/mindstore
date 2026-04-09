@@ -26,7 +26,9 @@ def _chunk_note(content: str) -> list[ChunkResult]:
     paragraphs = [p.strip() for p in content.split("\n\n") if len(p.strip()) >= 50]
     if paragraphs:
         total = len(paragraphs)
-        return [ChunkResult(text=p, chunk_index=i, total_chunks=total) for i, p in enumerate(paragraphs)]
+        return [
+            ChunkResult(text=p, chunk_index=i, total_chunks=total) for i, p in enumerate(paragraphs)
+        ]
 
     # No usable paragraphs — fall back to sliding window for long content
     word_count = len(content.split())
@@ -36,7 +38,9 @@ def _chunk_note(content: str) -> list[ChunkResult]:
     return [ChunkResult(text=content.strip(), chunk_index=0, total_chunks=1)]
 
 
-def _chunk_sliding_window(content: str, token_size: int = 500, overlap: int = 50) -> list[ChunkResult]:
+def _chunk_sliding_window(
+    content: str, token_size: int = 500, overlap: int = 50
+) -> list[ChunkResult]:
     # Approximate tokens by splitting on whitespace
     words = content.split()
     if not words:

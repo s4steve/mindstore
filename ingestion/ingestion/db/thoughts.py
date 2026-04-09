@@ -2,8 +2,6 @@ import json
 
 import asyncpg
 
-from ._helpers import _vec
-
 
 async def insert_thought(
     pool: asyncpg.Pool,
@@ -21,7 +19,8 @@ async def insert_thought(
     row = await pool.fetchrow(
         """
         INSERT INTO thoughts
-            (content, embedding, source, content_type, title, tags, metadata, chunk_index, parent_id)
+            (content, embedding, source, content_type, title,
+             tags, metadata, chunk_index, parent_id)
         VALUES
             ($1, $2::vector, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id::text
@@ -111,10 +110,7 @@ async def get_recent(
         content_type,
         limit,
     )
-    return [
-        {**dict(r), "created_at": r["created_at"].isoformat()}
-        for r in rows
-    ]
+    return [{**dict(r), "created_at": r["created_at"].isoformat()} for r in rows]
 
 
 async def get_thought_full(pool: asyncpg.Pool, id: str) -> dict | None:

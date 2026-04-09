@@ -1,11 +1,12 @@
-import hmac
-import os
-import logging
 import asyncio
+import hmac
+import logging
+import os
 
 from mcp.server.fastmcp import FastMCP
 
 from embedder import SentenceTransformerEmbedder
+
 from . import db as db_module
 from . import tools as tools_module
 from .tools import register_tools
@@ -90,15 +91,17 @@ class BearerTokenMiddleware:
             # Close WebSocket with 4401 close code before upgrade completes
             await send({"type": "websocket.close", "code": 4401})
             return
-        await send({
-            "type": "http.response.start",
-            "status": 401,
-            "headers": [
-                (b"content-type", b"application/json"),
-                (b"content-length", str(len(body)).encode()),
-                (b"www-authenticate", b'Bearer realm="MCP"'),
-            ],
-        })
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 401,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(body)).encode()),
+                    (b"www-authenticate", b'Bearer realm="MCP"'),
+                ],
+            }
+        )
         await send({"type": "http.response.body", "body": body})
 
 

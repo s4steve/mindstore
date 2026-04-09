@@ -1,7 +1,7 @@
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Literal
-from pydantic import BaseModel, Field
 
+from pydantic import BaseModel, Field
 
 ContentType = Literal["thought", "note", "event"]
 
@@ -61,7 +61,7 @@ class StatsResponse(BaseModel):
 
 # ── Tasks ─────────────────────────────────────────────────────────────────────
 
-TaskStatus   = Literal["open", "done", "cancelled"]
+TaskStatus = Literal["open", "done", "cancelled"]
 TaskPriority = Literal["high", "medium", "low"]
 TaskCategory = Literal["general", "work", "personal", "health", "finance", "home"]
 
@@ -104,6 +104,7 @@ class TaskResponse(BaseModel):
 
 # ── Contacts ──────────────────────────────────────────────────────────────────
 
+
 class ContactCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     email: str | None = None
@@ -141,6 +142,7 @@ class ContactInteraction(BaseModel):
 
 # ── Home items ────────────────────────────────────────────────────────────────
 
+
 class HomeItemCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=300)
     notes: str | None = None
@@ -170,6 +172,7 @@ class HomeItemResponse(BaseModel):
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
+
 
 class DashboardResponse(BaseModel):
     overdue_tasks: list[TaskResponse]

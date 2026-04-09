@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../ingestion"))
 
@@ -21,11 +21,13 @@ def test_event_no_chunking():
 
 
 def test_note_paragraph_chunking():
-    content = "\n\n".join([
-        "This is the first paragraph with enough content to pass the minimum.",
-        "This is the second paragraph with enough content to pass the minimum.",
-        "This is the third paragraph with enough content to pass the minimum.",
-    ])
+    content = "\n\n".join(
+        [
+            "This is the first paragraph with enough content to pass the minimum.",
+            "This is the second paragraph with enough content to pass the minimum.",
+            "This is the third paragraph with enough content to pass the minimum.",
+        ]
+    )
     results = chunk(content, "note")
     assert len(results) == 3
     for i, r in enumerate(results):

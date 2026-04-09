@@ -4,6 +4,7 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 
 from embedder import SentenceTransformerEmbedder
+
 from . import search as search_module
 
 # These are set by main.py before registering tools
@@ -16,36 +17,40 @@ _pool = None
 def register_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
-    async def add_thought(content: str, tags: list[str] = []) -> dict:
+    async def add_thought(content: str, tags: list[str] | None = None) -> dict:
         """Capture a quick thought or idea."""
         return await _call_ingest(
             content=content,
             content_type="thought",
-            tags=tags,
+            tags=tags or [],
         )
 
     @mcp.tool()
-    async def add_note(title: str, content: str, tags: list[str] = []) -> dict:
+    async def add_note(title: str, content: str, tags: list[str] | None = None) -> dict:
         """Store a structured note with a title."""
         return await _call_ingest(
             content=content,
             content_type="note",
             title=title,
-            tags=tags,
+            tags=tags or [],
         )
 
     @mcp.tool()
-    async def add_event(description: str, tags: list[str] = [], metadata: dict = {}) -> dict:
+    async def add_event(
+        description: str, tags: list[str] | None = None, metadata: dict | None = None
+    ) -> dict:
         """Log something that happened."""
         return await _call_ingest(
             content=description,
             content_type="event",
-            tags=tags,
-            metadata=metadata,
+            tags=tags or [],
+            metadata=metadata or {},
         )
 
     @mcp.tool()
-    async def search_thoughts(query: str, limit: int = 10, content_type: str | None = None) -> list[dict]:
+    async def search_thoughts(
+        query: str, limit: int = 10, content_type: str | None = None
+    ) -> list[dict]:
         """Semantically search your knowledge store."""
         embedding = _embedder.embed(query)
         results = await search_module.semantic_search(_pool, embedding, limit, content_type)
@@ -133,13 +138,19 @@ def register_tools(mcp: FastMCP) -> None:
         due_date: str | None = None,
         recurrence_days: int | None = None,
         category: str = "general",
-        tags: list[str] = [],
+        tags: list[str] | None = None,
     ) -> dict:
-        """Add a task. priority: high/medium/low. category: general/work/personal/health/finance/home."""
-        payload = {"title": title, "priority": priority, "category": category, "tags": tags}
-        if notes:        payload["notes"] = notes
-        if due_date:     payload["due_date"] = due_date
-        if recurrence_days: payload["recurrence_days"] = recurrence_days
+        """Add a task. priority: high/medium/low.
+
+        category: general/work/personal/health/finance/home.
+        """
+        payload = {"title": title, "priority": priority, "category": category, "tags": tags or []}
+        if notes:
+            payload["notes"] = notes
+        if due_date:
+            payload["due_date"] = due_date
+        if recurrence_days:
+            payload["recurrence_days"] = recurrence_days
         return await _call_ingestion("POST", "/tasks", payload)
 
     @mcp.tool()
@@ -169,7 +180,7 @@ def register_tools(mcp: FastMCP) -> None:
         category: str | None = None,
         due_soon_days: int | None = None,
     ) -> list[dict]:
-        """List tasks. Filter by status (open/done/cancelled), category, or tasks due within N days."""
+        """List tasks. Filter by status (open/done/cancelled), category, or due within N days."""
         params = {k: v for k, v in locals().items() if v is not None}
         path = f"/tasks?{urlencode(params)}" if params else "/tasks"
         return await _call_ingestion("GET", path)
@@ -183,12 +194,13 @@ def register_tools(mcp: FastMCP) -> None:
         phone: str | None = None,
         company: str | None = None,
         notes: str | None = None,
-        tags: list[str] = [],
+        tags: list[str] | None = None,
     ) -> dict:
         """Add a contact."""
-        payload = {"name": name, "tags": tags}
+        payload = {"name": name, "tags": tags or []}
         for k, v in [("email", email), ("phone", phone), ("company", company), ("notes", notes)]:
-            if v: payload[k] = v
+            if v:
+                payload[k] = v
         return await _call_ingestion("POST", "/contacts", payload)
 
     @mcp.tool()
@@ -207,13 +219,17 @@ def register_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def log_interaction(id: str, note: str) -> dict:
-        """Log an interaction with a contact. Appends a timestamped note and sets last_contact_at."""
+        """Log an interaction with a contact. Appends a note and sets last_contact_at."""
         return await _call_ingestion("POST", f"/contacts/{id}/interaction", {"note": note})
 
     @mcp.tool()
     async def list_contacts(reach_out_days: int | None = None) -> list[dict]:
         """List contacts. Pass reach_out_days to filter contacts not reached in that many days."""
-        path = f"/contacts?{urlencode({'reach_out_days': reach_out_days})}" if reach_out_days else "/contacts"
+        path = (
+            f"/contacts?{urlencode({'reach_out_days': reach_out_days})}"
+            if reach_out_days
+            else "/contacts"
+        )
         return await _call_ingestion("GET", path)
 
     # ── Home items ─────────────────────────────────────────────────────────────
@@ -224,13 +240,16 @@ def register_tools(mcp: FastMCP) -> None:
         notes: str | None = None,
         interval_days: int | None = None,
         next_due_at: str | None = None,
-        tags: list[str] = [],
+        tags: list[str] | None = None,
     ) -> dict:
         """Add a home maintenance item (e.g. 'Change air filter', interval_days=90)."""
-        payload = {"name": name, "tags": tags}
-        if notes:         payload["notes"] = notes
-        if interval_days: payload["interval_days"] = interval_days
-        if next_due_at:   payload["next_due_at"] = next_due_at
+        payload = {"name": name, "tags": tags or []}
+        if notes:
+            payload["notes"] = notes
+        if interval_days:
+            payload["interval_days"] = interval_days
+        if next_due_at:
+            payload["next_due_at"] = next_due_at
         return await _call_ingestion("POST", "/home", payload)
 
     @mcp.tool()
@@ -248,7 +267,7 @@ def register_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def complete_home_item(id: str) -> dict:
-        """Mark a home item done. Sets last_done_at=now and advances next_due_at by interval_days."""
+        """Mark a home item done. Sets last_done_at=now, advances next_due_at."""
         return await _call_ingestion("POST", f"/home/{id}/complete")
 
     @mcp.tool()
@@ -261,7 +280,7 @@ def register_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def get_dashboard() -> dict:
-        """Get a dashboard summary: overdue/due-soon tasks, overdue/due-soon home items, contacts to reach out to."""
+        """Get a dashboard summary: overdue/due-soon tasks and home items, stale contacts."""
         return await _call_ingestion("GET", "/dashboard")
 
 

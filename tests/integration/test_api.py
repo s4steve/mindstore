@@ -3,8 +3,9 @@ Integration tests for the ingestion REST API.
 Requires the full Docker stack to be running:
     docker compose up -d
 """
+
 import os
-import pytest
+
 import httpx
 
 BASE_URL = os.environ.get("INGESTION_URL", "http://localhost:8000")

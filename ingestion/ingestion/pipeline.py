@@ -1,11 +1,15 @@
 import asyncpg
+
 from embedder import EmbedderBase
+
 from . import chunker
 from . import db as db_module
 from .models import IngestRequest, IngestResponse
 
 
-async def ingest(request: IngestRequest, db_pool: asyncpg.Pool, embedder: EmbedderBase) -> IngestResponse:
+async def ingest(
+    request: IngestRequest, db_pool: asyncpg.Pool, embedder: EmbedderBase
+) -> IngestResponse:
     chunks = chunker.chunk(request.content, request.content_type)
     parent_id: str | None = None
     ids: list[str] = []

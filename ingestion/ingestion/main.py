@@ -1,28 +1,40 @@
 import hmac
-import os
 import logging
+import os
 from contextlib import asynccontextmanager
 
 import asyncpg
-from fastapi import FastAPI, HTTPException, Request, Security, Depends
+from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.security.api_key import APIKeyHeader
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from embedder import SentenceTransformerEmbedder, EmbedderBase
+from embedder import EmbedderBase, SentenceTransformerEmbedder
+
 from . import db as db_module
 from . import pipeline
 from .models import (
-    IngestRequest, IngestResponse,
-    UpdateRequest, UpdateResponse,
-    DeleteResponse,
-    BulkIngestRequest, BulkIngestResponse,
-    HealthResponse, StatsResponse,
-    TaskCreate, TaskUpdate, TaskResponse,
-    ContactCreate, ContactUpdate, ContactResponse, ContactInteraction,
-    HomeItemCreate, HomeItemUpdate, HomeItemResponse,
+    BulkIngestRequest,
+    BulkIngestResponse,
+    ContactCreate,
+    ContactInteraction,
+    ContactResponse,
+    ContactUpdate,
     DashboardResponse,
+    DeleteResponse,
+    HealthResponse,
+    HomeItemCreate,
+    HomeItemResponse,
+    HomeItemUpdate,
+    IngestRequest,
+    IngestResponse,
+    StatsResponse,
+    TaskCreate,
+    TaskResponse,
+    TaskUpdate,
+    UpdateRequest,
+    UpdateResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -101,9 +113,13 @@ async def recent(limit: int = 10, content_type: str | None = None):
 
 @app.get("/search", dependencies=[Depends(get_api_key)])
 @limiter.limit("60/minute")
-async def search_endpoint(request: Request, q: str, limit: int = 10, content_type: str | None = None):
+async def search_endpoint(
+    request: Request, q: str, limit: int = 10, content_type: str | None = None
+):
     embedding = get_embedder().embed(q)
-    return await db_module.cross_table_search(get_pool(), embedding=embedding, limit=limit, content_type=content_type)
+    return await db_module.cross_table_search(
+        get_pool(), embedding=embedding, limit=limit, content_type=content_type
+    )
 
 
 def _embed(*parts: str | None) -> list[float]:
@@ -165,6 +181,7 @@ async def ingest_batch(request: Request, batch_req: BulkIngestRequest):
 
 # ── Tasks ─────────────────────────────────────────────────────────────────────
 
+
 @app.post("/tasks", response_model=TaskResponse, dependencies=[Depends(get_api_key)])
 async def create_task(request: TaskCreate):
     data = await db_module.create_task(
@@ -176,8 +193,12 @@ async def create_task(request: TaskCreate):
 
 
 @app.get("/tasks", response_model=list[TaskResponse], dependencies=[Depends(get_api_key)])
-async def list_tasks(status: str | None = None, category: str | None = None, due_soon_days: int | None = None):
-    rows = await db_module.list_tasks(get_pool(), status=status, category=category, due_soon_days=due_soon_days)
+async def list_tasks(
+    status: str | None = None, category: str | None = None, due_soon_days: int | None = None
+):
+    rows = await db_module.list_tasks(
+        get_pool(), status=status, category=category, due_soon_days=due_soon_days
+    )
     return [TaskResponse(**r) for r in rows]
 
 
@@ -224,6 +245,7 @@ async def complete_task(id: str):
 
 
 # ── Contacts ──────────────────────────────────────────────────────────────────
+
 
 @app.post("/contacts", response_model=ContactResponse, dependencies=[Depends(get_api_key)])
 async def create_contact(request: ContactCreate):
@@ -274,13 +296,18 @@ async def delete_contact(id: str):
     return DeleteResponse(id=id, deleted=True)
 
 
-@app.post("/contacts/{id}/interaction", response_model=ContactResponse, dependencies=[Depends(get_api_key)])
+@app.post(
+    "/contacts/{id}/interaction",
+    response_model=ContactResponse,
+    dependencies=[Depends(get_api_key)],
+)
 async def log_interaction(id: str, request: ContactInteraction):
     # Get current contact to build updated embedding text (name + accumulated notes)
     current = await db_module.get_contact(get_pool(), id)
     if not current:
         raise HTTPException(status_code=404, detail="Contact not found")
     import datetime
+
     timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     updated_notes = (
         f"{current['notes']}\n\n{timestamp}: {request.note}"
@@ -295,6 +322,7 @@ async def log_interaction(id: str, request: ContactInteraction):
 
 
 # ── Home items ────────────────────────────────────────────────────────────────
+
 
 @app.post("/home", response_model=HomeItemResponse, dependencies=[Depends(get_api_key)])
 async def create_home_item(request: HomeItemCreate):
@@ -345,7 +373,9 @@ async def delete_home_item(id: str):
     return DeleteResponse(id=id, deleted=True)
 
 
-@app.post("/home/{id}/complete", response_model=HomeItemResponse, dependencies=[Depends(get_api_key)])
+@app.post(
+    "/home/{id}/complete", response_model=HomeItemResponse, dependencies=[Depends(get_api_key)]
+)
 async def complete_home_item(id: str):
     row = await db_module.complete_home_item(get_pool(), id)
     if not row:
@@ -356,6 +386,7 @@ async def complete_home_item(id: str):
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 
 # ── Wiki / Tags ──────────────────────────────────────────────────────────────
+
 
 @app.get("/tags", dependencies=[Depends(get_api_key)])
 async def list_tags():

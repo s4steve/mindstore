@@ -1,5 +1,6 @@
+from datetime import datetime
+
 import asyncpg
-from datetime import datetime, timezone
 
 
 async def semantic_search(
@@ -160,7 +161,7 @@ async def weekly_review(pool: asyncpg.Pool, days: int = 7) -> dict:
     tag_freq: dict[str, int] = {}
     for entry in entries:
         by_type[entry["content_type"]] = by_type.get(entry["content_type"], 0) + 1
-        for tag in (entry["tags"] or []):
+        for tag in entry["tags"] or []:
             tag_freq[tag] = tag_freq.get(tag, 0) + 1
         if entry.get("created_at"):
             entry["created_at"] = entry["created_at"].isoformat()

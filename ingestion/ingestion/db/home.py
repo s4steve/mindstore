@@ -1,9 +1,11 @@
 import asyncpg
 
-from ._helpers import _vec, _build_set_clause
+from ._helpers import _build_set_clause, _vec
 
 
-async def create_home_item(pool: asyncpg.Pool, embedding: list[float] | None = None, **kwargs) -> dict:
+async def create_home_item(
+    pool: asyncpg.Pool, embedding: list[float] | None = None, **kwargs
+) -> dict:
     row = await pool.fetchrow(
         """
         INSERT INTO home_items (name, notes, interval_days, next_due_at, tags, embedding)
@@ -11,8 +13,12 @@ async def create_home_item(pool: asyncpg.Pool, embedding: list[float] | None = N
         RETURNING id::text, name, notes, last_done_at, next_due_at,
                   interval_days, tags, created_at, updated_at
         """,
-        kwargs["name"], kwargs.get("notes"), kwargs.get("interval_days"),
-        kwargs.get("next_due_at"), kwargs.get("tags", []), _vec(embedding),
+        kwargs["name"],
+        kwargs.get("notes"),
+        kwargs.get("interval_days"),
+        kwargs.get("next_due_at"),
+        kwargs.get("tags", []),
+        _vec(embedding),
     )
     return dict(row)
 
@@ -23,7 +29,8 @@ async def list_home_items(pool: asyncpg.Pool, due_soon_days: int | None = None) 
         SELECT id::text, name, notes, last_done_at, next_due_at,
                interval_days, tags, created_at, updated_at
         FROM home_items
-        WHERE ($1::int IS NULL OR (next_due_at IS NOT NULL AND next_due_at <= NOW() + ($1 || ' days')::interval))
+        WHERE ($1::int IS NULL OR (next_due_at IS NOT NULL
+               AND next_due_at <= NOW() + ($1 || ' days')::interval))
         ORDER BY next_due_at ASC NULLS LAST, name ASC
         """,
         due_soon_days,
@@ -43,14 +50,16 @@ async def get_home_item(pool: asyncpg.Pool, id: str) -> dict | None:
     return dict(row) if row else None
 
 
-async def update_home_item(pool: asyncpg.Pool, id: str, embedding: list[float] | None = None, **kwargs) -> dict | None:
+async def update_home_item(
+    pool: asyncpg.Pool, id: str, embedding: list[float] | None = None, **kwargs
+) -> dict | None:
     sets, values, idx = _build_set_clause("home_items", kwargs, embedding)
     if not sets:
         return await get_home_item(pool, id)
     values.append(id)
     row = await pool.fetchrow(
         f"""
-        UPDATE home_items SET {', '.join(sets)}
+        UPDATE home_items SET {", ".join(sets)}
         WHERE id = ${idx}::uuid
         RETURNING id::text, name, notes, last_done_at, next_due_at,
                   interval_days, tags, created_at, updated_at

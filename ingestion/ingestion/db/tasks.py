@@ -2,21 +2,28 @@ import datetime
 
 import asyncpg
 
-from ._helpers import _vec, _build_set_clause
+from ._helpers import _build_set_clause, _vec
 
 
 async def create_task(pool: asyncpg.Pool, embedding: list[float] | None = None, **kwargs) -> dict:
     row = await pool.fetchrow(
         """
-        INSERT INTO tasks (title, notes, status, priority, due_date, recurrence_days, category, tags, embedding)
+        INSERT INTO tasks
+            (title, notes, status, priority, due_date,
+             recurrence_days, category, tags, embedding)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::vector)
         RETURNING id::text, title, notes, status, priority, due_date,
                   recurrence_days, category, tags, created_at, updated_at
         """,
-        kwargs["title"], kwargs.get("notes"), kwargs.get("status", "open"),
-        kwargs.get("priority", "medium"), kwargs.get("due_date"),
-        kwargs.get("recurrence_days"), kwargs.get("category", "general"),
-        kwargs.get("tags", []), _vec(embedding),
+        kwargs["title"],
+        kwargs.get("notes"),
+        kwargs.get("status", "open"),
+        kwargs.get("priority", "medium"),
+        kwargs.get("due_date"),
+        kwargs.get("recurrence_days"),
+        kwargs.get("category", "general"),
+        kwargs.get("tags", []),
+        _vec(embedding),
     )
     return dict(row)
 
@@ -40,7 +47,9 @@ async def list_tasks(
             due_date ASC NULLS LAST,
             created_at DESC
         """,
-        status, category, due_soon_days,
+        status,
+        category,
+        due_soon_days,
     )
     return [dict(r) for r in rows]
 
@@ -57,14 +66,16 @@ async def get_task(pool: asyncpg.Pool, id: str) -> dict | None:
     return dict(row) if row else None
 
 
-async def update_task(pool: asyncpg.Pool, id: str, embedding: list[float] | None = None, **kwargs) -> dict | None:
+async def update_task(
+    pool: asyncpg.Pool, id: str, embedding: list[float] | None = None, **kwargs
+) -> dict | None:
     sets, values, idx = _build_set_clause("tasks", kwargs, embedding)
     if not sets:
         return await get_task(pool, id)
     values.append(id)
     row = await pool.fetchrow(
         f"""
-        UPDATE tasks SET {', '.join(sets)}
+        UPDATE tasks SET {", ".join(sets)}
         WHERE id = ${idx}::uuid
         RETURNING id::text, title, notes, status, priority, due_date,
                   recurrence_days, category, tags, created_at, updated_at
@@ -95,14 +106,23 @@ async def complete_task(pool: asyncpg.Pool, id: str) -> dict | None:
         task = dict(row)
         if task.get("recurrence_days") and task.get("due_date"):
             new_due = task["due_date"] + datetime.timedelta(days=task["recurrence_days"])
-            emb_row = await conn.fetchrow("SELECT embedding::text FROM tasks WHERE id = $1::uuid", id)
+            emb_row = await conn.fetchrow(
+                "SELECT embedding::text FROM tasks WHERE id = $1::uuid", id
+            )
             await conn.execute(
                 """
-                INSERT INTO tasks (title, notes, status, priority, due_date, recurrence_days, category, tags, embedding)
+                INSERT INTO tasks
+                    (title, notes, status, priority, due_date,
+                     recurrence_days, category, tags, embedding)
                 VALUES ($1, $2, 'open', $3, $4, $5, $6, $7, $8::vector)
                 """,
-                task["title"], task["notes"], task["priority"],
-                new_due, task["recurrence_days"], task["category"], task["tags"],
+                task["title"],
+                task["notes"],
+                task["priority"],
+                new_due,
+                task["recurrence_days"],
+                task["category"],
+                task["tags"],
                 emb_row["embedding"] if emb_row else None,
             )
         return task

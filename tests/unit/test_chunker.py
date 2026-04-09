@@ -43,9 +43,11 @@ def test_note_short_paragraphs_short_content_fallback():
 
 
 def test_note_long_no_paragraphs_uses_sliding_window():
-    # No paragraph structure, but content exceeds 500-word threshold
-    words = ["word"] * 600
-    content = " ".join(words)
+    # Short paragraphs (under 50 chars each) so paragraph chunking is skipped,
+    # but total word count exceeds the 500-word sliding window threshold.
+    # Using \n\n to create many small paragraphs that all fail the >=50 char filter.
+    words = ["w"] * 600
+    content = "\n\n".join(words)
     results = chunk(content, "note")
     # With 500-token window and 50 overlap, step=450
     # chunk 0: 0..500, chunk 1: 450..600 (end)

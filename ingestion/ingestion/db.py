@@ -602,6 +602,168 @@ async def cross_table_search(
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 
+# ── Wiki / tag helpers ────────────────────────────────────────────────────────
+
+async def get_all_tags(pool: asyncpg.Pool) -> list[dict]:
+    """Return every tag across all tables with usage count."""
+    rows = await pool.fetch(
+        """
+        WITH all_tags AS (
+            SELECT unnest(tags) AS tag FROM thoughts WHERE parent_id IS NULL
+            UNION ALL
+            SELECT unnest(tags) FROM tasks
+            UNION ALL
+            SELECT unnest(tags) FROM contacts
+            UNION ALL
+            SELECT unnest(tags) FROM home_items
+        )
+        SELECT tag, COUNT(*) AS count
+        FROM all_tags
+        GROUP BY tag
+        ORDER BY count DESC, tag ASC
+        """
+    )
+    return [{"tag": r["tag"], "count": r["count"]} for r in rows]
+
+
+async def get_items_by_tag(pool: asyncpg.Pool, tag: str) -> list[dict]:
+    """Return all items across all tables that carry the given tag."""
+    rows = await pool.fetch(
+        """
+        SELECT id::text, content, title, tags, content_type, created_at
+        FROM thoughts
+        WHERE $1 = ANY(tags) AND parent_id IS NULL
+
+        UNION ALL
+
+        SELECT id::text,
+               CASE WHEN notes IS NOT NULL THEN title || E'\n' || notes ELSE title END,
+               title, tags, 'task'::text, created_at
+        FROM tasks
+        WHERE $1 = ANY(tags)
+
+        UNION ALL
+
+        SELECT id::text,
+               CASE WHEN notes IS NOT NULL THEN name || E'\n' || notes ELSE name END,
+               name, tags, 'contact'::text, created_at
+        FROM contacts
+        WHERE $1 = ANY(tags)
+
+        UNION ALL
+
+        SELECT id::text,
+               CASE WHEN notes IS NOT NULL THEN name || E'\n' || notes ELSE name END,
+               name, tags, 'home_item'::text, created_at
+        FROM home_items
+        WHERE $1 = ANY(tags)
+
+        ORDER BY created_at DESC
+        """,
+        tag,
+    )
+    return [
+        {**dict(r), "created_at": r["created_at"].isoformat()}
+        for r in rows
+    ]
+
+
+async def get_related_tags(pool: asyncpg.Pool, tag: str, limit: int = 10) -> list[dict]:
+    """Return tags that co-occur with the given tag, ranked by frequency."""
+    rows = await pool.fetch(
+        """
+        WITH tagged_items AS (
+            SELECT tags FROM thoughts WHERE $1 = ANY(tags) AND parent_id IS NULL
+            UNION ALL
+            SELECT tags FROM tasks WHERE $1 = ANY(tags)
+            UNION ALL
+            SELECT tags FROM contacts WHERE $1 = ANY(tags)
+            UNION ALL
+            SELECT tags FROM home_items WHERE $1 = ANY(tags)
+        ),
+        co_tags AS (
+            SELECT unnest(tags) AS related_tag FROM tagged_items
+        )
+        SELECT related_tag, COUNT(*) AS co_occurrence
+        FROM co_tags
+        WHERE related_tag != $1
+        GROUP BY related_tag
+        ORDER BY co_occurrence DESC, related_tag ASC
+        LIMIT $2
+        """,
+        tag,
+        limit,
+    )
+    return [{"tag": r["related_tag"], "co_occurrence": r["co_occurrence"]} for r in rows]
+
+
+async def get_suggested_connections(
+    pool: asyncpg.Pool, tag: str, limit: int = 8
+) -> list[dict]:
+    """Find items semantically similar to a tag's centroid but NOT tagged with it."""
+    rows = await pool.fetch(
+        """
+        WITH tag_embeddings AS (
+            SELECT embedding FROM thoughts
+            WHERE $1 = ANY(tags) AND parent_id IS NULL AND embedding IS NOT NULL
+            UNION ALL
+            SELECT embedding FROM tasks
+            WHERE $1 = ANY(tags) AND embedding IS NOT NULL
+            UNION ALL
+            SELECT embedding FROM contacts
+            WHERE $1 = ANY(tags) AND embedding IS NOT NULL
+            UNION ALL
+            SELECT embedding FROM home_items
+            WHERE $1 = ANY(tags) AND embedding IS NOT NULL
+        ),
+        centroid AS (
+            SELECT AVG(embedding) AS embedding FROM tag_embeddings
+        ),
+        combined AS (
+            SELECT id::text, content, title, tags, content_type, created_at, embedding
+            FROM thoughts
+            WHERE parent_id IS NULL AND embedding IS NOT NULL AND NOT ($1 = ANY(tags))
+
+            UNION ALL
+
+            SELECT id::text,
+                   CASE WHEN notes IS NOT NULL THEN title || E'\n' || notes ELSE title END,
+                   title, tags, 'task'::text, created_at, embedding
+            FROM tasks
+            WHERE embedding IS NOT NULL AND NOT ($1 = ANY(tags))
+
+            UNION ALL
+
+            SELECT id::text,
+                   CASE WHEN notes IS NOT NULL THEN name || E'\n' || notes ELSE name END,
+                   name, tags, 'contact'::text, created_at, embedding
+            FROM contacts
+            WHERE embedding IS NOT NULL AND NOT ($1 = ANY(tags))
+
+            UNION ALL
+
+            SELECT id::text,
+                   CASE WHEN notes IS NOT NULL THEN name || E'\n' || notes ELSE name END,
+                   name, tags, 'home_item'::text, created_at, embedding
+            FROM home_items
+            WHERE embedding IS NOT NULL AND NOT ($1 = ANY(tags))
+        )
+        SELECT c.id, c.content, c.title, c.tags, c.content_type, c.created_at,
+               1 - (c.embedding <=> cent.embedding) AS similarity
+        FROM combined c, centroid cent
+        WHERE cent.embedding IS NOT NULL
+        ORDER BY c.embedding <=> cent.embedding
+        LIMIT $2
+        """,
+        tag,
+        limit,
+    )
+    return [
+        {**dict(r), "created_at": r["created_at"].isoformat(), "similarity": float(r["similarity"])}
+        for r in rows
+    ]
+
+
 async def get_dashboard(pool: asyncpg.Pool) -> dict:
     overdue_tasks = await pool.fetch(
         """

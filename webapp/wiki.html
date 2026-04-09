@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mindstore &mdash; Wiki</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #f0f5f8;
+      --bg-card:    #ffffff;
+      --bg-raised:  #e6edf3;
+      --bg-hover:   #dde7ef;
+      --border:     #c4d4e0;
+      --border-sub: #d8e5ee;
+      --text:       #0f2130;
+      --text-2:     #3d6a82;
+      --text-3:     #8aafc4;
+      --teal:       #0aa898;
+      --teal-dim:   #088a7c;
+      --teal-glow:  rgba(10,168,152,0.15);
+      --teal-bg:    rgba(10,168,152,0.08);
+      --green:      #1aaa60;
+      --green-dim:  #158a4e;
+      --green-glow: rgba(26,170,96,0.14);
+      --blue:       #2a7db8;
+      --red:        #cc3a3a;
+      --yellow:     #a06818;
+      --display:    'Playfair Display', serif;
+      --mono:       'IBM Plex Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(ellipse at 50% 0%, rgba(10,168,152,0.05) 0%, transparent 55%),
+        radial-gradient(ellipse at 90% 90%, rgba(42,125,184,0.04) 0%, transparent 45%);
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    body { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* Header */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 40px; border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .wordmark {
+      font-family: var(--display); font-size: 26px; font-weight: 400;
+      color: var(--text); letter-spacing: 0.02em;
+    }
+    .wordmark em { font-style: italic; color: var(--teal); }
+    .header-right {
+      display: flex; align-items: center; gap: 24px;
+      font-size: 10px; color: var(--text-3); letter-spacing: 0.07em;
+    }
+    .status-dot {
+      display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+      background: var(--text-3); margin-right: 6px;
+      transition: background 0.4s, box-shadow 0.4s; vertical-align: middle;
+    }
+    .status-dot.on  { background: var(--green); box-shadow: 0 0 6px var(--green-glow); }
+    .status-dot.err { background: var(--red); }
+
+    /* Layout */
+    .wiki-layout {
+      display: flex; flex: 1; max-width: 1100px; width: 100%;
+      margin: 0 auto; min-height: 0;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 240px; flex-shrink: 0; padding: 28px 20px 28px 40px;
+      border-right: 1px solid var(--border-sub); overflow-y: auto;
+    }
+    .sidebar-title {
+      font-family: var(--display); font-size: 14px; font-style: italic;
+      color: var(--text-2); margin-bottom: 14px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sidebar-title::before {
+      content: ''; display: block; width: 20px; height: 1px;
+      background: var(--teal); flex-shrink: 0;
+    }
+    #tagFilter {
+      width: 100%; background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--mono); font-size: 11px;
+      padding: 7px 10px; outline: none; caret-color: var(--teal);
+      margin-bottom: 12px; transition: border-color 0.2s;
+    }
+    #tagFilter::placeholder { color: var(--text-3); font-style: italic; }
+    #tagFilter:focus { border-color: var(--teal); }
+    .tag-list { list-style: none; }
+    .tag-item {
+      display: flex; align-items: baseline; justify-content: space-between;
+      padding: 5px 8px; cursor: pointer; border-radius: 3px;
+      transition: background 0.1s, color 0.1s;
+      font-size: 12px; color: var(--text-2);
+    }
+    .tag-item:hover { background: var(--bg-hover); }
+    .tag-item.active { background: var(--teal-bg); color: var(--teal); }
+    .tag-name::before { content: '#'; color: var(--teal); margin-right: 2px; opacity: 0.5; }
+    .tag-item.active .tag-name::before { opacity: 1; }
+    .tag-count {
+      font-size: 10px; color: var(--text-3); min-width: 20px; text-align: right;
+    }
+    .tag-item.active .tag-count { color: var(--teal); }
+
+    /* Main content */
+    .wiki-main {
+      flex: 1; padding: 28px 40px 48px 32px; overflow-y: auto; min-width: 0;
+    }
+    .wiki-empty {
+      font-family: var(--display); font-size: 16px; font-style: italic;
+      color: var(--text-3); padding-top: 40px; text-align: center;
+    }
+    .wiki-empty-sub {
+      font-family: var(--mono); font-size: 11px; color: var(--text-3);
+      margin-top: 8px;
+    }
+
+    /* Tag page header */
+    .tag-header {
+      display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px;
+    }
+    .tag-header h1 {
+      font-family: var(--display); font-size: 28px; font-weight: 400;
+      color: var(--text);
+    }
+    .tag-header h1::before { content: '#'; color: var(--teal); margin-right: 2px; }
+    .tag-header .item-count {
+      font-size: 11px; color: var(--text-3); letter-spacing: 0.04em;
+    }
+
+    /* Related tags row */
+    .related-row {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 28px; min-height: 24px;
+    }
+    .related-label {
+      font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;
+      text-transform: uppercase; margin-right: 4px;
+    }
+    .related-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--bg-raised); border: 1px solid var(--border-sub);
+      color: var(--text-2); font-size: 10px; padding: 2px 10px;
+      border-radius: 100px; cursor: pointer; transition: all 0.12s;
+    }
+    .related-chip:hover { border-color: var(--teal); color: var(--teal); }
+    .related-chip .co-count { color: var(--text-3); font-size: 9px; }
+
+    /* Section dividers */
+    .section-divider {
+      display: flex; align-items: center; gap: 14px; margin: 32px 0 16px;
+    }
+    .section-divider:first-of-type { margin-top: 0; }
+    .section-divider span {
+      font-family: var(--display); font-size: 13px; font-style: italic;
+      color: var(--text-2); white-space: nowrap;
+    }
+    .section-divider .type-count {
+      font-family: var(--mono); font-size: 10px; color: var(--text-3);
+      font-style: normal; margin-left: 4px;
+    }
+    .section-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* Item cards */
+    .wiki-item {
+      padding: 12px 14px; border-bottom: 1px solid var(--border-sub);
+      cursor: pointer; transition: background 0.12s;
+      animation: slideIn 0.2s ease both;
+    }
+    .wiki-item:hover { background: var(--bg-card); }
+    @keyframes slideIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+    .item-meta {
+      display: flex; gap: 10px; align-items: baseline; margin-bottom: 3px;
+    }
+    .item-type {
+      font-size: 9px; color: var(--text-3); letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .item-time { font-size: 10px; color: var(--text-3); letter-spacing: 0.04em; }
+    .item-sim {
+      font-size: 10px; color: var(--teal); letter-spacing: 0.02em; margin-left: auto;
+    }
+    .item-content {
+      font-size: 12px; font-weight: 300; color: var(--text-2); line-height: 1.7;
+      overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .item-tags { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+    .item-tag { font-size: 9px; color: var(--text-3); letter-spacing: 0.04em; }
+    .item-tag::before { content: '#'; color: var(--teal); margin-right: 1px; }
+
+    /* Suggested connections section */
+    .suggested-section { margin-top: 40px; }
+    .suggested-note {
+      font-size: 10px; color: var(--text-3); font-style: italic;
+      margin-bottom: 12px; letter-spacing: 0.02em;
+    }
+
+    /* Modal */
+    #modal-overlay {
+      position: fixed; inset: 0; background: rgba(4,12,22,0.75);
+      z-index: 200; display: flex; align-items: center; justify-content: center;
+      padding: 24px; opacity: 0; pointer-events: none;
+      transition: opacity 0.18s; backdrop-filter: blur(4px);
+    }
+    #modal-overlay.open { opacity: 1; pointer-events: all; }
+    #modal {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-top: 2px solid var(--teal);
+      max-width: 680px; width: 100%; max-height: 80vh;
+      display: flex; flex-direction: column;
+      transform: translateY(10px); transition: transform 0.18s;
+    }
+    #modal-overlay.open #modal { transform: translateY(0); }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .modal-meta {
+      display: flex; gap: 12px; align-items: baseline;
+      font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;
+    }
+    .modal-type { text-transform: uppercase; letter-spacing: 0.12em; color: var(--teal); }
+    #modal-close {
+      background: none; border: none; color: var(--text-3); font-size: 16px;
+      cursor: pointer; padding: 0; transition: color 0.12s;
+    }
+    #modal-close:hover { color: var(--red); }
+    .modal-body { padding: 24px 28px; overflow-y: auto; flex: 1; }
+    #modal-content {
+      font-size: 13px; font-weight: 300; line-height: 1.9; color: var(--text);
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .modal-tags {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-top: 20px;
+      padding-top: 16px; border-top: 1px solid var(--border-sub);
+    }
+
+    /* Footer */
+    footer {
+      padding: 12px 40px; border-top: 1px solid var(--border);
+      font-size: 10px; color: var(--text-3); letter-spacing: 0.07em;
+      display: flex; justify-content: space-between; flex-shrink: 0;
+    }
+
+    /* Responsive */
+    @media (max-width: 720px) {
+      .wiki-layout { flex-direction: column; }
+      .sidebar {
+        width: 100%; border-right: none; border-bottom: 1px solid var(--border-sub);
+        padding: 16px 20px; max-height: 200px;
+      }
+      .wiki-main { padding: 20px; }
+    }
+
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); }
+  </style>
+</head>
+<body>
+
+<div id="modal-overlay">
+  <div id="modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <div class="modal-meta">
+        <span class="modal-type" id="modal-type"></span>
+        <span id="modal-time"></span>
+        <span id="modal-sim"></span>
+      </div>
+      <button id="modal-close" aria-label="close">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-content"></div>
+      <div class="modal-tags" id="modal-tags"></div>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="wordmark">Mind<em>store</em></div>
+  <div class="header-right">
+    <span>
+      <span class="status-dot" id="dot"></span>
+      <span id="connStatus">connecting</span>
+    </span>
+  </div>
+</header>
+
+<div class="wiki-layout">
+  <aside class="sidebar">
+    <div class="sidebar-title">Tags</div>
+    <input id="tagFilter" type="text" placeholder="filter tags&#x2026;" autocomplete="off" spellcheck="false">
+    <ul class="tag-list" id="tagList"></ul>
+  </aside>
+
+  <section class="wiki-main" id="wikiMain">
+    <div class="wiki-empty">
+      Select a tag to explore
+      <div class="wiki-empty-sub">or add tags to your thoughts, notes, and tasks</div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <span>mindstore wiki</span>
+  <span id="footerInfo">&mdash;</span>
+</footer>
+
+<script>
+  const tagListEl   = document.getElementById('tagList');
+  const tagFilterEl = document.getElementById('tagFilter');
+  const wikiMainEl  = document.getElementById('wikiMain');
+  const footerInfo  = document.getElementById('footerInfo');
+  const dotEl       = document.getElementById('dot');
+  const connEl      = document.getElementById('connStatus');
+
+  let allTags = [];
+  let activeTag = null;
+
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function relTime(iso) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm';
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + 'h';
+    const d = Math.floor(h / 24);
+    if (d < 30) return d + 'd';
+    return Math.floor(d / 30) + 'mo';
+  }
+
+  const typeLabels = {
+    thought: 'thought', note: 'note', event: 'event',
+    task: 'task', contact: 'contact', home_item: 'home'
+  };
+
+  // ── Load tags ────────────────────────────────────────────────────────────
+
+  async function loadTags() {
+    try {
+      const res = await fetch('/api/tags');
+      if (!res.ok) throw new Error();
+      allTags = await res.json();
+      dotEl.className = 'status-dot on'; connEl.textContent = 'connected';
+      footerInfo.textContent = allTags.length + ' tags';
+      renderTagList();
+      // Auto-select from hash
+      const hash = location.hash.slice(1);
+      if (hash && allTags.some(t => t.tag === hash)) selectTag(hash);
+    } catch {
+      dotEl.className = 'status-dot err'; connEl.textContent = 'offline';
+      tagListEl.innerHTML = '<li style="color:var(--text-3);font-size:11px;padding:8px;">could not reach api</li>';
+    }
+  }
+
+  function renderTagList(filter) {
+    const f = (filter || '').toLowerCase();
+    const filtered = f ? allTags.filter(t => t.tag.includes(f)) : allTags;
+    tagListEl.innerHTML = '';
+    if (!filtered.length) {
+      tagListEl.innerHTML = '<li style="color:var(--text-3);font-size:11px;padding:8px;font-style:italic;">no tags found</li>';
+      return;
+    }
+    filtered.forEach(t => {
+      const li = document.createElement('li');
+      li.className = 'tag-item' + (t.tag === activeTag ? ' active' : '');
+      li.innerHTML = '<span class="tag-name">' + esc(t.tag) + '</span><span class="tag-count">' + t.count + '</span>';
+      li.addEventListener('click', () => selectTag(t.tag));
+      tagListEl.appendChild(li);
+    });
+  }
+
+  tagFilterEl.addEventListener('input', () => renderTagList(tagFilterEl.value));
+
+  // ── Select tag ───────────────────────────────────────────────────────────
+
+  async function selectTag(tag) {
+    activeTag = tag;
+    location.hash = tag;
+    renderTagList(tagFilterEl.value);
+    wikiMainEl.innerHTML = '<div class="wiki-empty">loading&#x2026;</div>';
+
+    try {
+      const res = await fetch('/api/tags/' + encodeURIComponent(tag));
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      renderTagPage(data);
+    } catch (err) {
+      wikiMainEl.innerHTML = '<div class="wiki-empty">error: ' + esc(err.message) + '</div>';
+    }
+  }
+
+  // ── Render tag page ──────────────────────────────────────────────────────
+
+  function renderTagPage(data) {
+    let html = '';
+
+    // Header
+    html += '<div class="tag-header"><h1>' + esc(data.tag) + '</h1>';
+    html += '<span class="item-count">' + data.items.length + ' item' + (data.items.length !== 1 ? 's' : '') + '</span></div>';
+
+    // Related tags
+    html += '<div class="related-row">';
+    if (data.related_tags.length) {
+      html += '<span class="related-label">related</span>';
+      data.related_tags.forEach(rt => {
+        html += '<span class="related-chip" data-tag="' + esc(rt.tag) + '">'
+          + '#' + esc(rt.tag)
+          + ' <span class="co-count">' + rt.co_occurrence + '</span></span>';
+      });
+    }
+    html += '</div>';
+
+    // Group items by type
+    const groups = {};
+    data.items.forEach(item => {
+      const t = item.content_type;
+      if (!groups[t]) groups[t] = [];
+      groups[t].push(item);
+    });
+
+    // Render each group
+    const typeOrder = ['thought', 'note', 'event', 'task', 'contact', 'home_item'];
+    typeOrder.forEach(type => {
+      if (!groups[type]) return;
+      const items = groups[type];
+      const label = typeLabels[type] || type;
+      html += '<div class="section-divider"><span>' + label + 's<span class="type-count">(' + items.length + ')</span></span></div>';
+      items.forEach((item, i) => {
+        html += renderItem(item, i, null);
+      });
+    });
+
+    // Suggested connections
+    if (data.suggested.length) {
+      html += '<div class="suggested-section">';
+      html += '<div class="section-divider"><span>suggested connections</span></div>';
+      html += '<div class="suggested-note">Items semantically related to #' + esc(data.tag) + ' but not yet tagged with it</div>';
+      data.suggested.forEach((item, i) => {
+        html += renderItem(item, i, item.similarity);
+      });
+      html += '</div>';
+    }
+
+    wikiMainEl.innerHTML = html;
+
+    // Bind click events for related tag chips
+    wikiMainEl.querySelectorAll('.related-chip').forEach(chip => {
+      chip.addEventListener('click', () => selectTag(chip.dataset.tag));
+    });
+
+    // Bind click events for items
+    wikiMainEl.querySelectorAll('.wiki-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = el.dataset.idx;
+        const source = el.dataset.source;
+        let item;
+        if (source === 'suggested') {
+          item = data.suggested[idx];
+        } else {
+          item = data.items[idx];
+        }
+        openModal(item);
+      });
+    });
+  }
+
+  function renderItem(item, idx, similarity) {
+    const source = similarity != null ? 'suggested' : 'items';
+    // For suggested items, idx is relative to suggested array; for items, relative to full items array
+    const dataIdx = source === 'suggested' ? idx : findItemIndex(item);
+    let html = '<div class="wiki-item" data-idx="' + dataIdx + '" data-source="' + source + '" style="animation-delay:' + (idx * 25) + 'ms">';
+    html += '<div class="item-meta">';
+    html += '<span class="item-type">' + esc(typeLabels[item.content_type] || item.content_type) + '</span>';
+    html += '<span class="item-time">' + relTime(item.created_at) + '</span>';
+    if (similarity != null) {
+      html += '<span class="item-sim">' + Math.round(similarity * 100) + '% similar</span>';
+    }
+    html += '</div>';
+
+    const displayText = item.title || item.content || '';
+    html += '<div class="item-content">' + esc(displayText) + '</div>';
+
+    if (item.tags && item.tags.length) {
+      html += '<div class="item-tags">';
+      item.tags.forEach(t => { html += '<span class="item-tag">' + esc(t) + '</span>'; });
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  // We need to track item indices for the click handler
+  let _currentItems = [];
+  const _origRenderTagPage = renderTagPage;
+  renderTagPage = function(data) {
+    _currentItems = data.items;
+    _origRenderTagPage(data);
+  };
+
+  function findItemIndex(item) {
+    return _currentItems.findIndex(i => i.id === item.id);
+  }
+
+  // ── Modal ────────────────────────────────────────────────────────────────
+
+  const modalOverlay = document.getElementById('modal-overlay');
+  const modalType    = document.getElementById('modal-type');
+  const modalTime    = document.getElementById('modal-time');
+  const modalSim     = document.getElementById('modal-sim');
+  const modalContent = document.getElementById('modal-content');
+  const modalTags    = document.getElementById('modal-tags');
+  const modalClose   = document.getElementById('modal-close');
+
+  async function openModal(item) {
+    modalType.textContent = typeLabels[item.content_type] || item.content_type;
+    modalTime.textContent = relTime(item.created_at);
+    modalSim.textContent = item.similarity != null ? Math.round(item.similarity * 100) + '% match' : '';
+    modalContent.textContent = item.content || item.title || '';
+    modalTags.innerHTML = (item.tags || []).map(t => '<span class="item-tag">' + esc(t) + '</span>').join('');
+    modalTags.style.display = item.tags && item.tags.length ? 'flex' : 'none';
+    modalOverlay.classList.add('open');
+    document.addEventListener('keydown', onModalKey);
+
+    // Fetch full content for thoughts/notes/events
+    if (['thought', 'note', 'event'].includes(item.content_type)) {
+      try {
+        const resp = await fetch('/api/thoughts/' + item.id);
+        if (resp.ok) { const full = await resp.json(); modalContent.textContent = full.content; }
+      } catch (e) { /* keep preview on error */ }
+    }
+  }
+
+  function closeModal() {
+    modalOverlay.classList.remove('open');
+    document.removeEventListener('keydown', onModalKey);
+  }
+  function onModalKey(e) { if (e.key === 'Escape') closeModal(); }
+  modalClose.addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) closeModal(); });
+
+  // ── Hash navigation ──────────────────────────────────────────────────────
+
+  window.addEventListener('hashchange', () => {
+    const hash = location.hash.slice(1);
+    if (hash && hash !== activeTag) selectTag(hash);
+  });
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+
+  loadTags();
+</script>
+<script src="/nav.js"></script>
+</body>
+</html>

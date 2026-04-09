@@ -9,6 +9,7 @@ Features include:
 - **Contacts** with interaction logging and "reach out" reminders
 - **Home maintenance** tracking with interval-based scheduling
 - **Dashboard** surfacing overdue items and contacts to reach out to
+- **Wiki** — auto-generated tag-based knowledge pages with related tags and suggested connections
 - **MCP integration** for Claude Desktop and Claude Code
 
 Runs entirely in Docker on any `linux/amd64` or `linux/arm64` host (e.g. a Raspberry Pi 5) and is accessed remotely via Tailscale.
@@ -88,7 +89,7 @@ curl -X POST http://localhost:8000/ingest \
 
 ## Web UI
 
-The web UI is served on port 3000 and requires HTTP basic auth (`WEB_USERNAME` / `WEB_PASSWORD`). A navigation bar links between the four pages.
+The web UI is served on port 3000 and requires HTTP basic auth (`WEB_USERNAME` / `WEB_PASSWORD`). A navigation bar links between the five pages.
 
 | Page | URL | Description |
 |---|---|---|
@@ -96,6 +97,7 @@ The web UI is served on port 3000 and requires HTTP basic auth (`WEB_USERNAME` /
 | Tasks | `/tasks.html` | Manage tasks with filters, priorities, and inline editing |
 | Contacts | `/contacts.html` | Contact list with interaction logging and stale-contact filter |
 | Home | `/home.html` | Home maintenance items with interval scheduling |
+| Wiki | `/wiki.html` | Auto-generated tag-based knowledge pages with suggested connections |
 
 ### Capture page
 - Type a thought and press `Ctrl+Enter` (or `⌘+Enter`) to save
@@ -120,6 +122,18 @@ The web UI is served on port 3000 and requires HTTP basic auth (`WEB_USERNAME` /
 - Add maintenance items with a name, interval (days), and next due date
 - Mark done automatically sets `last_done_at` and advances `next_due_at` by the interval
 - Overdue items are highlighted red; items due within 7 days are highlighted yellow
+
+### Wiki page
+The wiki is an auto-generated, read-only view over your existing data — it requires no manual curation. Everything is derived from the tags you already add to thoughts, notes, tasks, contacts, and home items.
+
+- **Tag index sidebar** — lists every tag across all tables, sorted by frequency, with item counts; includes a filter input to quickly find tags
+- **Tag detail view** — click a tag to see all items carrying that tag, grouped by type (thoughts, notes, events, tasks, contacts, home items)
+- **Related tags** — shows tags that frequently co-occur with the selected tag; click to navigate between related topics
+- **Suggested connections** — the most valuable feature: finds items that are semantically similar to the tag's content but don't carry that tag. This surfaces relationships you might not have noticed, like a thought from months ago that relates to a task you just created. Uses centroid embedding similarity across your vector store
+- **Hash-based routing** — URLs like `/wiki.html#work` are bookmarkable and shareable; the browser back/forward buttons navigate between tags
+- **Modal detail view** — click any item to see its full content (long notes are reassembled from all chunks)
+
+The wiki updates automatically as you add, tag, or modify items — there is nothing to maintain.
 
 ---
 
@@ -222,6 +236,13 @@ All endpoints (except `/health`) require `X-API-Key` header. This header authent
   "tags": []
 }
 ```
+
+### Wiki / Tags
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/tags` | List all tags across all tables with usage counts |
+| `GET` | `/tags/{tag}` | Items with this tag, related tags (co-occurrence), and suggested connections (semantic similarity) |
 
 ### Dashboard
 

@@ -341,6 +341,26 @@ async def complete_home_item(id: str):
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 
+# ── Wiki / Tags ──────────────────────────────────────────────────────────────
+
+@app.get("/tags", dependencies=[Depends(get_api_key)])
+async def list_tags():
+    return await db_module.get_all_tags(get_pool())
+
+
+@app.get("/tags/{tag}", dependencies=[Depends(get_api_key)])
+async def get_tag_detail(tag: str):
+    items = await db_module.get_items_by_tag(get_pool(), tag)
+    related_tags = await db_module.get_related_tags(get_pool(), tag)
+    suggested = await db_module.get_suggested_connections(get_pool(), tag)
+    return {
+        "tag": tag,
+        "items": items,
+        "related_tags": related_tags,
+        "suggested": suggested,
+    }
+
+
 @app.get("/dashboard", response_model=DashboardResponse, dependencies=[Depends(get_api_key)])
 async def get_dashboard():
     data = await db_module.get_dashboard(get_pool())

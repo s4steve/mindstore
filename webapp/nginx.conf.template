@@ -63,6 +63,14 @@ server {
         proxy_pass_request_headers on;
     }
 
+    location /api/tags {
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass http://ingestion:${INGESTION_PORT};
+        proxy_set_header Host $host;
+        proxy_set_header X-API-Key ${API_KEY};
+        proxy_pass_request_headers on;
+    }
+
     location /api/thoughts {
         rewrite ^/api/(.*)$ /$1 break;
         proxy_pass http://ingestion:${INGESTION_PORT};

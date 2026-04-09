@@ -4,6 +4,7 @@
     { href: '/tasks.html',   label: 'tasks' },
     { href: '/contacts.html',label: 'contacts' },
     { href: '/home.html',    label: 'home' },
+    { href: '/wiki.html',    label: 'wiki' },
   ];
 
   // Inject font if not already present

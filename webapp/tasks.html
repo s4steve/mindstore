@@ -85,7 +85,7 @@
     .badge-recur  { background:var(--green-bg);      color:var(--green);  border:1px solid rgba(46,200,122,0.25); }
     .overdue-label { color:var(--red); font-weight:500; }
     .task-actions { display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
-    .task-notes { font-size:11px; color:var(--text-2); margin-top:6px; white-space:pre-wrap; line-height:1.6; }
+    .task-notes { font-size:11px; color:var(--text-2); margin-top:6px; white-space:pre-wrap; line-height:1.6; overflow-wrap:break-word; word-break:break-all; }
 
     .edit-form { margin-top:14px; padding-top:14px; border-top:1px solid var(--border-sub); display:none; }
     .edit-form.open { display:block; }
@@ -191,7 +191,8 @@
       const el = document.createElement('div');
       el.className = 'task-item priority-'+t.priority+(overdue?' overdue':'')+(t.status==='done'?' done':'');
       el.dataset.id = t.id;
-      const dueTxt = t.due_date ? '<span class="'+(overdue?'overdue-label':'')+'">'+relDate(t.due_date+'T00:00:00')+'</span>' : '';
+      const dueDate = t.due_date ? new Date(t.due_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+      const dueTxt = t.due_date ? '<span class="'+(overdue?'overdue-label':'')+'">due '+esc(dueDate)+' ('+relDate(t.due_date+'T00:00:00')+')</span>' : '';
       const recurBadge = t.recurrence_days ? '<span class="badge badge-recur">&#x21BB; '+t.recurrence_days+'d</span>' : '';
       el.innerHTML =
         '<div>'+

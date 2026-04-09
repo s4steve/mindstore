@@ -20,6 +20,8 @@ COPY ingestion/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY ingestion/ingestion/ ingestion/
+COPY ingestion/alembic.ini alembic.ini
+COPY ingestion/alembic/ alembic/
 
 RUN useradd -m -u 1001 appuser
 USER appuser

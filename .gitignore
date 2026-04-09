@@ -39,6 +39,10 @@ settings.local.json
 *.p12
 *.pfx
 
+# Planning docs
+future.md
+fixes.md
+
 # OS
 .DS_Store
 Thumbs.db

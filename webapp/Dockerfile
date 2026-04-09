@@ -6,6 +6,7 @@ COPY nav.js .
 COPY tasks.html .
 COPY contacts.html .
 COPY home.html .
+COPY wiki.html .
 
 # Remove default nginx config; ours is injected at startup via envsubst
 RUN rm /etc/nginx/conf.d/default.conf

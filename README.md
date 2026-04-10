@@ -23,7 +23,7 @@ Runs entirely in Docker on any `linux/amd64` or `linux/arm64` host (e.g. a Raspb
 | `db` | 5432 | PostgreSQL 16 + pgvector |
 | `ingestion` | 8000 | FastAPI REST service (knowledge, tasks, contacts, home) |
 | `mcp_server` | 8001 | MCP server (streamable-http transport) |
-| `webapp` | 3000 | Web UI with nav, basic auth |
+| `webapp` | 3000 | Web UI with nav, cookie-based login |
 
 The ingestion service embeds content locally using `all-MiniLM-L6-v2` (384 dimensions) and stores it with pgvector for cosine similarity search. The MCP server delegates all operations to the ingestion API — it does not touch the database directly.
 
@@ -37,11 +37,12 @@ Mindstore uses two distinct authentication methods for different purposes:
 |---|---|---|---|
 | **REST API** (ingestion, port 8000) | `X-API-Key` header | `API_KEY` | Authenticate requests to ingest, search, manage tasks/contacts/home |
 | **MCP Server** (port 8001) | Bearer token (`Authorization: Bearer <token>`) | `MCP_AUTH_TOKEN` | Authenticate MCP client connections (Claude Desktop, Claude Code) |
-| **Web UI** (port 3000) | HTTP Basic Auth | `WEB_USERNAME` / `WEB_PASSWORD` | Authenticate browser access |
+| **Web UI** (port 3000) | Cookie-based login | `WEB_USERNAME` / `WEB_PASSWORD` | Authenticate browser access via login page |
 
 - Set `API_KEY` to a strong secret for service-to-service authentication
 - Set `MCP_AUTH_TOKEN` to a strong secret for MCP client access (if left empty, the server warns at startup but accepts unauthenticated connections)
-- Set `WEB_USERNAME` / `WEB_PASSWORD` for web UI access
+- Set `WEB_USERNAME` / `WEB_PASSWORD` for web UI login
+- Web UI sessions are stored as HMAC-signed cookies (30-day expiry, no server-side state)
 
 ---
 
@@ -59,7 +60,7 @@ Edit `.env` and set strong values for:
 - `POSTGRES_PASSWORD`
 - `API_KEY` (service-to-service authentication: MCP server → ingestion service)
 - `MCP_AUTH_TOKEN` (bearer token for MCP client connections — used by Claude Desktop / Claude Code)
-- `WEB_USERNAME` / `WEB_PASSWORD` (web UI basic auth)
+- `WEB_USERNAME` / `WEB_PASSWORD` (web UI login)
 
 ### 2. Build and start
 
@@ -89,7 +90,7 @@ curl -X POST http://localhost:8000/ingest \
 
 ## Web UI
 
-The web UI is served on port 3000 and requires HTTP basic auth (`WEB_USERNAME` / `WEB_PASSWORD`). A navigation bar links between the five pages.
+The web UI is served on port 3000 with cookie-based authentication. On first visit you'll see a login page — enter your `WEB_USERNAME` / `WEB_PASSWORD` credentials and the session persists for 30 days. A navigation bar links between the five pages, with a logout link on the right.
 
 | Page | URL | Description |
 |---|---|---|

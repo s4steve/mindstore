@@ -4,8 +4,10 @@ import os
 from contextlib import asynccontextmanager
 
 import asyncpg
-from fastapi import Depends, FastAPI, HTTPException, Request, Security
+from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Security
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security.api_key import APIKeyHeader
+from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -14,6 +16,7 @@ from embedder import EmbedderBase, SentenceTransformerEmbedder
 
 from . import db as db_module
 from . import pipeline
+from .auth import COOKIE_NAME, create_cookie_value, verify_cookie
 from .models import (
     BulkIngestRequest,
     BulkIngestResponse,
@@ -42,6 +45,8 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.environ["DATABASE_URL"]
 API_KEY = os.environ["API_KEY"]
 EMBEDDER_MODEL = os.environ.get("EMBEDDER_MODEL", "all-MiniLM-L6-v2")
+WEB_USERNAME = os.environ.get("WEB_USERNAME", "")
+WEB_PASSWORD = os.environ.get("WEB_PASSWORD", "")
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
 
@@ -75,6 +80,49 @@ app.state.limiter = limiter
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/auth/login")
+@limiter.limit("5/minute")
+async def auth_login(request: Request, creds: LoginRequest):
+    if not (
+        hmac.compare_digest(creds.username, WEB_USERNAME)
+        and hmac.compare_digest(creds.password, WEB_PASSWORD)
+    ):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    cookie_value = create_cookie_value(creds.username)
+    response = JSONResponse({"status": "ok"})
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=cookie_value,
+        max_age=30 * 24 * 3600,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        path="/",
+    )
+    return response
+
+
+@app.get("/auth/check")
+async def auth_check(
+    mindstore_session: str | None = Cookie(None),
+):
+    if not mindstore_session or not verify_cookie(mindstore_session):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return {"status": "ok"}
+
+
+@app.get("/auth/logout")
+async def auth_logout():
+    response = RedirectResponse(url="/login.html", status_code=302)
+    response.delete_cookie(key=COOKIE_NAME, path="/")
+    return response
 
 
 def get_pool() -> asyncpg.Pool:

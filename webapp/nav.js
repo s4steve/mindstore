@@ -39,6 +39,9 @@
     }
     nav.site-nav a:hover { color: #c0dff0; }
     nav.site-nav a.active { color: #0fbfa6; border-bottom-color: #0fbfa6; }
+    nav.site-nav .spacer { flex: 1; }
+    nav.site-nav a.logout { color: #8aafc4; }
+    nav.site-nav a.logout:hover { color: #c0dff0; }
   `;
   document.head.appendChild(style);
 
@@ -54,6 +57,16 @@
     if (isActive) a.classList.add('active');
     nav.appendChild(a);
   });
+
+  const spacer = document.createElement('span');
+  spacer.className = 'spacer';
+  nav.appendChild(spacer);
+
+  const logout = document.createElement('a');
+  logout.href = '/api/auth/logout';
+  logout.textContent = 'logout';
+  logout.className = 'logout';
+  nav.appendChild(logout);
 
   const header = document.querySelector('header');
   if (header) header.insertAdjacentElement('afterend', nav);

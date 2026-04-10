@@ -13,11 +13,47 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
-    auth_basic "Mindstore";
-    auth_basic_user_file /etc/nginx/.htpasswd;
+    # Cookie-based auth: every request goes through this check
+    auth_request /auth/check;
+
+    # Redirect 401 to login page
+    error_page 401 =302 /login.html;
 
     root /usr/share/nginx/html;
     index index.html;
+
+    # Internal location for auth validation (called by auth_request)
+    location = /auth/check {
+        internal;
+        proxy_pass http://ingestion:${INGESTION_PORT}/auth/check;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header Cookie $http_cookie;
+    }
+
+    # Login page — no auth required
+    location = /login.html {
+        auth_request off;
+        try_files $uri =404;
+    }
+
+    # Login API endpoint — no auth required
+    location = /api/auth/login {
+        auth_request off;
+        proxy_pass http://ingestion:${INGESTION_PORT}/auth/login;
+        proxy_set_header Host $host;
+        proxy_set_header Content-Type application/json;
+        proxy_pass_request_headers on;
+    }
+
+    # Logout API endpoint — no auth required
+    location = /api/auth/logout {
+        auth_request off;
+        proxy_pass http://ingestion:${INGESTION_PORT}/auth/logout;
+        proxy_set_header Host $host;
+        proxy_set_header Cookie $http_cookie;
+        proxy_pass_request_headers on;
+    }
 
     # Proxy /api/ingest → ingestion service
     location = /api/ingest {

@@ -31,6 +31,8 @@ services:
       INGESTION_PORT: ${INGESTION_PORT:-8000}
       EMBEDDER_BACKEND: ${EMBEDDER_BACKEND:-local}
       EMBEDDER_MODEL: ${EMBEDDER_MODEL:-all-MiniLM-L6-v2}
+      WEB_USERNAME: ${WEB_USERNAME}
+      WEB_PASSWORD: ${WEB_PASSWORD}
     depends_on:
       db:
         condition: service_healthy

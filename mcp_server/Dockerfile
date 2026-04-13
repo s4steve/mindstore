@@ -4,16 +4,10 @@ WORKDIR /app
 # Upgrade pip and setuptools first (setuptools.backends requires >=68)
 RUN pip install --no-cache-dir --upgrade pip setuptools
 
-# Install torch CPU-only (ARM64 compatible)
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-RUN pip install --no-cache-dir sentence-transformers
-
-# Install embedder as a local package
-COPY embedder/ /embedder/
-RUN pip install --no-cache-dir /embedder
-
-# Pre-download the model during build so startup is instant
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+# NOTE: torch, sentence-transformers, and the embedder package are
+# deliberately NOT installed here. mcp_server delegates embedding to
+# ingestion via POST /embed. Do not reintroduce these dependencies without
+# revisiting tools._fetch_embedding and the single-source-of-truth contract.
 
 # Install mcp_server dependencies
 COPY mcp_server/requirements.txt .

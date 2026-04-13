@@ -1,6 +1,17 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- EMBEDDING DIMENSION INVARIANT ------------------------------------------------
+-- Every `embedding vector(384)` column below is pinned to 384 dimensions,
+-- which is the output size of `all-MiniLM-L6-v2` (the default embedder in
+-- embedder/embedder/local.py). Changing the embedder to a model with a
+-- different output dimension (e.g. Voyage, OpenAI) is NOT a config change —
+-- it requires: (1) an Alembic migration altering every vector column,
+-- (2) a re-embed of every existing row, (3) coordinated restart of both the
+-- ingestion and mcp_server processes, which each load the model independently.
+-- The `embedder.base.EmbedderBase` abstraction is misleading about this cost.
+-- -----------------------------------------------------------------------------
+
 CREATE TABLE IF NOT EXISTS thoughts (
     id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     content      TEXT NOT NULL,

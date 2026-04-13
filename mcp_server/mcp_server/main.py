@@ -5,8 +5,6 @@ import os
 
 from mcp.server.fastmcp import FastMCP
 
-from embedder import SentenceTransformerEmbedder
-
 from . import db as db_module
 from . import tools as tools_module
 from .tools import register_tools
@@ -16,7 +14,6 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.environ["DATABASE_URL"]
 INGESTION_URL = os.environ.get("INGESTION_URL", "http://ingestion:8000")
 API_KEY = os.environ["API_KEY"]
-EMBEDDER_MODEL = os.environ.get("EMBEDDER_MODEL", "all-MiniLM-L6-v2")
 MCP_HOST = os.environ.get("MCP_HOST", "0.0.0.0")
 MCP_PORT = int(os.environ.get("MCP_PORT", "8001"))
 MCP_AUTH_TOKEN = os.environ.get("MCP_AUTH_TOKEN") or None
@@ -29,9 +26,14 @@ if not MCP_AUTH_TOKEN:
 
 
 async def _initialize_server():
-    """Initialize server resources once at startup."""
-    logger.info("Loading embedder model...")
-    tools_module._embedder = SentenceTransformerEmbedder(EMBEDDER_MODEL)
+    """Initialize server resources once at startup.
+
+    The embedder is intentionally NOT loaded here — we delegate embedding to
+    ingestion via POST /embed. Ingestion is the single source of truth for
+    the 384-dim vector schema, which avoids loading a second ~1GB copy of
+    the model in this process and eliminates model-version skew between the
+    two services.
+    """
     logger.info("Connecting to database...")
     tools_module._pool = await db_module.create_pool(DATABASE_URL)
     tools_module._ingestion_url = INGESTION_URL

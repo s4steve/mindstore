@@ -7,7 +7,7 @@ import asyncpg
 from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Security
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security.api_key import APIKeyHeader
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -168,6 +168,23 @@ async def search_endpoint(
     return await db_module.cross_table_search(
         get_pool(), embedding=embedding, limit=limit, content_type=content_type
     )
+
+
+class EmbedRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=50_000)
+
+
+@app.post("/embed", dependencies=[Depends(get_api_key)])
+@limiter.limit("120/minute")
+async def embed_endpoint(request: Request, body: EmbedRequest) -> dict:
+    """Return an embedding vector for the given text.
+
+    Exists so that peer services (mcp_server) can avoid loading their own
+    copy of the sentence-transformers model. The schema pins vector(384);
+    callers that write these vectors must trust this endpoint as the single
+    source of truth for embeddings.
+    """
+    return {"embedding": get_embedder().embed(body.text)}
 
 
 def _embed(*parts: str | None) -> list[float]:

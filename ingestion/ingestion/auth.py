@@ -4,12 +4,18 @@ import hmac
 import os
 import time
 
+# Session cookies are HMAC-signed with SESSION_SECRET, kept deliberately
+# separate from API_KEY (which authenticates REST callers). This means a
+# leaked API_KEY does not let an attacker forge session cookies, and rotating
+# one secret does not invalidate the other. Note: there is still no
+# revocation list — a leaked cookie is valid for COOKIE_MAX_AGE.
+
 COOKIE_NAME = "mindstore_session"
 COOKIE_MAX_AGE = 30 * 24 * 3600  # 30 days
 
 
 def _get_secret() -> bytes:
-    return os.environ["API_KEY"].encode()
+    return os.environ["SESSION_SECRET"].encode()
 
 
 def create_cookie_value(username: str) -> str:

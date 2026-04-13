@@ -3,14 +3,11 @@ from urllib.parse import urlencode
 import httpx
 from mcp.server.fastmcp import FastMCP
 
-from embedder import SentenceTransformerEmbedder
-
 from . import search as search_module
 
 # These are set by main.py before registering tools
 _ingestion_url: str = ""
 _api_key: str = ""
-_embedder: SentenceTransformerEmbedder | None = None
 _pool = None
 
 
@@ -52,7 +49,7 @@ def register_tools(mcp: FastMCP) -> None:
         query: str, limit: int = 10, content_type: str | None = None
     ) -> list[dict]:
         """Semantically search your knowledge store."""
-        embedding = _embedder.embed(query)
+        embedding = await _fetch_embedding(query)
         results = await search_module.semantic_search(_pool, embedding, limit, content_type)
         for r in results:
             if r.get("created_at"):
@@ -301,6 +298,14 @@ async def _call_ingest(
     if title:
         payload["title"] = title
     return await _call_ingestion("POST", "/ingest", payload)
+
+
+async def _fetch_embedding(text: str) -> list[float]:
+    """Delegate embedding to ingestion so we don't load a second copy of the
+    model in this process. Ingestion is the single source of truth for the
+    384-dim vector schema."""
+    result = await _call_ingestion("POST", "/embed", {"text": text})
+    return result["embedding"]
 
 
 async def _call_ingestion(method: str, path: str, payload: dict | None = None) -> dict:

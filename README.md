@@ -31,7 +31,7 @@ The ingestion service embeds content locally using `all-MiniLM-L6-v2` (384 dimen
 
 ## Authentication
 
-Mindstore uses two distinct authentication methods for different purposes:
+Mindstore uses three distinct authentication methods for different purposes:
 
 | Service | Auth Method | Env Variable | Purpose |
 |---|---|---|---|
@@ -40,9 +40,10 @@ Mindstore uses two distinct authentication methods for different purposes:
 | **Web UI** (port 3000) | Cookie-based login | `WEB_USERNAME` / `WEB_PASSWORD` | Authenticate browser access via login page |
 
 - Set `API_KEY` to a strong secret for service-to-service authentication
-- Set `MCP_AUTH_TOKEN` to a strong secret for MCP client access (if left empty, the server warns at startup but accepts unauthenticated connections)
+- Set `SESSION_SECRET` to a strong, independent secret — it signs web UI session cookies. Keeping it separate from `API_KEY` means a leaked REST key cannot be used to forge sessions, and either secret can be rotated without invalidating the other.
+- Set `MCP_AUTH_TOKEN` to a strong secret for MCP client access (the server refuses to start if this is unset)
 - Set `WEB_USERNAME` / `WEB_PASSWORD` for web UI login
-- Web UI sessions are stored as HMAC-signed cookies (30-day expiry, no server-side state)
+- Web UI sessions are stored as HMAC-signed cookies (30-day expiry, no server-side state). There is no revocation list — rotating `SESSION_SECRET` is the way to force a global logout.
 
 ---
 
@@ -59,6 +60,7 @@ cp .env.example .env
 Edit `.env` and set strong values for:
 - `POSTGRES_PASSWORD`
 - `API_KEY` (service-to-service authentication: MCP server → ingestion service)
+- `SESSION_SECRET` (HMAC key for web UI session cookies — must be distinct from `API_KEY`; generate with `openssl rand -hex 32`)
 - `MCP_AUTH_TOKEN` (bearer token for MCP client connections — used by Claude Desktop / Claude Code)
 - `WEB_USERNAME` / `WEB_PASSWORD` (web UI login)
 
@@ -68,7 +70,7 @@ Edit `.env` and set strong values for:
 docker compose up --build
 ```
 
-The first build downloads PyTorch and the `all-MiniLM-L6-v2` model (~90MB). Subsequent starts are instant.
+The first build of the **ingestion** service downloads PyTorch and the `all-MiniLM-L6-v2` model (~90MB). The MCP server no longer loads the model itself — it delegates embedding to ingestion via `POST /embed`, so its image stays small. Subsequent starts are instant.
 
 ### 3. Verify
 

@@ -27,6 +27,8 @@ Runs entirely in Docker on any `linux/amd64` or `linux/arm64` host (e.g. a Raspb
 
 The ingestion service embeds content locally using `all-MiniLM-L6-v2` (384 dimensions) and stores it with pgvector for cosine similarity search. The MCP server delegates all operations to the ingestion API — it does not touch the database directly.
 
+Optional **AI cleanup** ("Refine" on the Capture page) is handled by a pluggable `refiner` backend (default: Anthropic Claude) exposed at `POST /refine`. It rewrites raw thoughts before they are saved but never touches storage itself — the cleaned text still flows through the normal `/ingest` path. See [AI cleanup configuration](#ai-cleanup-configuration).
+
 ---
 
 ## Authentication
@@ -106,8 +108,23 @@ The web UI is served on port 3000 with cookie-based authentication. On first vis
 - Type a thought and press `Ctrl+Enter` (or `⌘+Enter`) to save
 - Content with multiple paragraphs or >500 words is auto-detected as a note
 - Upload a `.txt` file to ingest as a note
+- **AI cleanup ("Refine")** — jot down a thought in rough, natural text, then click **Refine** (or `Ctrl`/`⌘`+`Shift`+`Enter`). The text is sent to the refiner backend, which fixes grammar/structure while preserving your meaning, and suggests a title and tags. The result drops back into the editor for you to review and edit before you press Capture. Only the cleaned version is stored. Refine is optional — if the backend is disabled, capture works exactly as before.
 - Semantic search returns results ranked by similarity score
 - Click any recent entry or search result to open a detail modal; long notes are reassembled from all chunks so the full content is shown
+
+#### AI cleanup configuration
+
+The refiner is a pluggable backend (mirroring the embedder). Configure it via `.env`:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `REFINER_BACKEND` | `anthropic` | Which backend to use. Currently `anthropic`; a local backend can be added later. |
+| `REFINER_MODEL` | `claude-sonnet-4-6` | Model used for cleanup. |
+| `ANTHROPIC_API_KEY` | _(empty)_ | Anthropic API key. **Leave empty to disable Refine** — `/refine` then returns `503` and capture still works as-is. |
+
+The Anthropic call uses a cached system prompt and returns structured output (via a tool schema) for reliable parsing.
+
+> **Privacy:** Refine is the one place Mindstore sends data off the box — your raw thought text goes to the Anthropic API only when you click Refine. Embeddings, storage, and search all remain local. To keep everything offline, leave `ANTHROPIC_API_KEY` empty (Refine disabled) until a local refiner backend is added.
 
 ### Tasks page
 - Add tasks with title, priority (high/medium/low), category, due date, and optional recurrence
@@ -646,9 +663,12 @@ claude mcp list
 ```bash
 pip install pytest sentence-transformers
 pip install -e embedder/
+pip install -e refiner/
 cd tests
 pytest unit/
 ```
+
+The refiner unit tests (`tests/unit/test_refiner.py`) mock the Anthropic client, so they run without the `anthropic` SDK installed or any API key.
 
 ### Integration tests (requires running stack)
 
@@ -666,3 +686,13 @@ pytest tests/integration/
 3. Update the embedder factory in `ingestion/ingestion/main.py` and `mcp_server/mcp_server/main.py` to select the backend from the env var
 
 No other code changes are needed.
+
+---
+
+## Adding a New Refiner (e.g. a local Ollama backend)
+
+1. Create `refiner/refiner/<backend>.py` implementing `RefinerBase.refine(raw, content_type) -> RefineResult`
+2. Export it from `refiner/refiner/__init__.py`
+3. Set `REFINER_BACKEND=<backend>` in `.env` and add a branch to `_build_refiner()` in `ingestion/ingestion/main.py`
+
+The `/refine` endpoint, nginx proxy, and Capture UI are backend-agnostic — no changes needed there.

@@ -64,6 +64,17 @@ server {
         proxy_pass_request_headers on;
     }
 
+    # Proxy /api/refine → ingestion service (AI cleanup)
+    location = /api/refine {
+        proxy_pass http://ingestion:${INGESTION_PORT}/refine;
+        proxy_set_header Host $host;
+        proxy_set_header X-API-Key ${API_KEY};
+        proxy_set_header Content-Type application/json;
+        proxy_pass_request_headers on;
+        # LLM calls can take a while; allow a generous read timeout.
+        proxy_read_timeout 120s;
+    }
+
     # Proxy /api/recent → ingestion service
     location = /api/recent {
         proxy_pass http://ingestion:${INGESTION_PORT}/recent;

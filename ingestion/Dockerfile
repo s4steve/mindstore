@@ -12,6 +12,10 @@ RUN pip install --no-cache-dir sentence-transformers
 COPY embedder/ /embedder/
 RUN pip install --no-cache-dir /embedder
 
+# Install refiner (AI cleanup) as a local package
+COPY refiner/ /refiner/
+RUN pip install --no-cache-dir /refiner
+
 # Pre-download the model during build so startup is instant
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 

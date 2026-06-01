@@ -15,33 +15,38 @@
     document.head.appendChild(link);
   }
 
+  // Styled with the site's CSS variables (with light-theme fallbacks) so the
+  // nav stays consistent on every page, including ones not yet migrated to
+  // styles.css. The previous hard-coded dark-theme colors were invisible on
+  // the light background.
   const style = document.createElement('style');
   style.textContent = `
     nav.site-nav {
       display: flex;
-      gap: 0;
+      gap: 2px;
       padding: 0 40px;
-      border-bottom: 1px solid #183448;
+      border-bottom: 1px solid var(--border, #d2e0ea);
       flex-shrink: 0;
     }
     nav.site-nav a {
       display: inline-block;
-      padding: 9px 16px 8px;
-      font-family: 'IBM Plex Mono', monospace;
+      padding: 11px 16px 10px;
+      font-family: var(--mono, 'JetBrains Mono', monospace);
       font-size: 10px;
+      font-weight: 500;
       letter-spacing: 0.12em;
       text-transform: uppercase;
       text-decoration: none;
-      color: #1e3a50;
+      color: var(--text-3, #89a8bc);
       border-bottom: 2px solid transparent;
       margin-bottom: -1px;
-      transition: color 0.15s, border-color 0.15s;
+      transition: color 0.16s, border-color 0.16s;
     }
-    nav.site-nav a:hover { color: #c0dff0; }
-    nav.site-nav a.active { color: #0fbfa6; border-bottom-color: #0fbfa6; }
+    nav.site-nav a:hover { color: var(--text, #0c1f2e); }
+    nav.site-nav a.active { color: var(--teal, #0a9e90); border-bottom-color: var(--teal, #0a9e90); }
     nav.site-nav .spacer { flex: 1; }
-    nav.site-nav a.logout { color: #8aafc4; }
-    nav.site-nav a.logout:hover { color: #c0dff0; }
+    nav.site-nav a.logout { color: var(--text-3, #89a8bc); }
+    nav.site-nav a.logout:hover { color: var(--red, #cc3a3a); }
   `;
   document.head.appendChild(style);
 

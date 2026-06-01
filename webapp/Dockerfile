@@ -3,6 +3,7 @@ WORKDIR /usr/share/nginx/html
 
 COPY index.html .
 COPY login.html .
+COPY styles.css .
 COPY nav.js .
 COPY tasks.html .
 COPY contacts.html .

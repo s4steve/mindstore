@@ -109,6 +109,31 @@
     #typeLabel { color: var(--teal); font-style: normal; transition: color 0.2s; }
     #typeLabel.is-note { color: var(--green); }
 
+    /* Refined badge */
+    .refined-badge {
+      display: none; align-items: center; gap: 6px; margin-left: auto;
+      font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--green);
+      border: 1px solid var(--green-glow); background: var(--green-glow);
+      padding: 3px 10px; border-radius: 100px; font-style: normal;
+      animation: chipIn 0.15s ease;
+    }
+    .refined-badge.show { display: inline-flex; }
+
+    /* Title input (optional; populated by AI refine) */
+    #titleInput {
+      width: 100%; margin-bottom: 10px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--display); font-size: 18px;
+      font-weight: 500; padding: 12px 18px; outline: none; caret-color: var(--teal);
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    }
+    #titleInput::placeholder { color: var(--text-3); font-style: italic; font-weight: 400; }
+    #titleInput:focus {
+      background: var(--bg-raised); border-color: var(--teal);
+      box-shadow: 0 0 0 3px var(--teal-glow);
+    }
+
     /* Textarea */
     #thought {
       width: 100%; min-height: 196px;
@@ -205,6 +230,20 @@
       border: 1px solid var(--border); background: var(--bg-card);
       color: var(--text-2); font-family: var(--mono); font-size: 9px; border-radius: 3px;
     }
+    .action-btns { display: flex; align-items: center; gap: 12px; }
+    #refineBtn {
+      background: transparent; color: var(--teal); border: 1px solid var(--teal);
+      font-family: var(--mono); font-size: 11px; font-weight: 500;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      padding: 11px 24px; cursor: pointer;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s, transform 0.08s;
+    }
+    #refineBtn:hover:not(:disabled) {
+      background: var(--teal-bg); box-shadow: 0 0 22px var(--teal-glow);
+    }
+    #refineBtn:active:not(:disabled) { transform: scale(0.97); }
+    #refineBtn:disabled { color: var(--text-3); border-color: var(--border); cursor: not-allowed; }
+    #refineBtn.hidden { display: none; }
     #captureBtn {
       background: var(--teal); color: var(--bg); border: none;
       font-family: var(--mono); font-size: 11px; font-weight: 500;
@@ -362,7 +401,11 @@
 </header>
 
 <main>
-  <div class="section-label">Capture <span id="typeLabel">thought</span></div>
+  <div class="section-label">Capture <span id="typeLabel">thought</span>
+    <span class="refined-badge" id="refinedBadge">&#x2713; refined &middot; review &amp; edit</span>
+  </div>
+
+  <input id="titleInput" type="text" placeholder="title (optional)" autocomplete="off" spellcheck="false" maxlength="200" style="display:none">
 
   <textarea id="thought" placeholder="What's on your mind&#x2026;" autofocus spellcheck="false" maxlength="50000"></textarea>
 
@@ -386,8 +429,11 @@
   </div>
 
   <div class="actions">
-    <span class="hint"><kbd>&#x2318;</kbd> / <kbd>Ctrl</kbd> + <kbd>&#x23CE;</kbd> to capture</span>
-    <button id="captureBtn">Capture</button>
+    <span class="hint"><kbd>&#x2318;</kbd>/<kbd>Ctrl</kbd>+<kbd>&#x23CE;</kbd> capture &middot; <kbd>&#x2318;</kbd>/<kbd>Ctrl</kbd>+<kbd>&#x21E7;</kbd>+<kbd>&#x23CE;</kbd> refine</span>
+    <div class="action-btns">
+      <button id="refineBtn" title="Clean up with AI">&#x2728; Refine</button>
+      <button id="captureBtn">Capture</button>
+    </div>
   </div>
 
   <div class="divider"><span>search</span></div>
@@ -425,6 +471,9 @@
   const fileBadge    = document.getElementById('fileBadge');
   const fileNameEl   = document.getElementById('fileName');
   const clearFileBtn = document.getElementById('clearFile');
+  const refineBtn    = document.getElementById('refineBtn');
+  const titleInput   = document.getElementById('titleInput');
+  const refinedBadge = document.getElementById('refinedBadge');
 
   function detectType(content) {
     const paragraphs = content.split('\n\n').filter(p => p.trim().length >= 50);
@@ -509,20 +558,62 @@
     busy = true; captureBtn.disabled = true; captureBtn.textContent = '\u2026';
     try {
       const content_type = isFileUpload ? 'note' : detectType(content);
+      const title = titleInput.value.trim();
+      const body = { content, content_type, tags: [...tags] };
+      if (title) body.title = title;
       const res = await fetch('/api/ingest', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, content_type, tags: [...tags] }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'HTTP '+res.status); }
       flash(); toast('captured as '+content_type+' \u2192');
       thoughtEl.value = ''; charCountEl.textContent = '0 / 50k'; clearFile(); updateTypeLabel('');
-      tags.length = 0; renderTags(); tagInputEl.value = ''; thoughtEl.focus(); loadRecent();
+      tags.length = 0; renderTags(); tagInputEl.value = ''; resetRefined(); thoughtEl.focus(); loadRecent();
     } catch(err) { toast('error: '+err.message, 'error'); }
     finally { busy = false; captureBtn.disabled = false; captureBtn.textContent = 'Capture'; }
   }
 
   captureBtn.addEventListener('click', capture);
-  thoughtEl.addEventListener('keydown', e => { if ((e.metaKey||e.ctrlKey) && e.key==='Enter') { e.preventDefault(); capture(); } });
+
+  function resetRefined() {
+    titleInput.value = ''; titleInput.style.display = 'none';
+    refinedBadge.classList.remove('show');
+  }
+
+  async function refine() {
+    const content = thoughtEl.value.trim();
+    if (!content || busy) return;
+    busy = true; refineBtn.disabled = true; captureBtn.disabled = true;
+    const prevLabel = refineBtn.innerHTML; refineBtn.innerHTML = '… refining';
+    try {
+      const content_type = isFileUpload ? 'note' : detectType(content);
+      const res = await fetch('/api/refine', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, content_type }),
+      });
+      if (res.status === 503) { toast('AI cleanup unavailable — capture as-is', 'error'); return; }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'HTTP '+res.status); }
+      const data = await res.json();
+      thoughtEl.value = data.content;
+      const n = thoughtEl.value.length;
+      charCountEl.textContent = n > 999 ? (n/1000).toFixed(1)+'k / 50k' : n+' / 50k';
+      updateTypeLabel(thoughtEl.value);
+      if (data.title) { titleInput.value = data.title; titleInput.style.display = 'block'; }
+      (data.tags || []).forEach(addTag);
+      refinedBadge.classList.add('show');
+      flash(); toast('refined — review & edit, then capture');
+      thoughtEl.focus();
+    } catch(err) { toast('refine error: '+err.message, 'error'); }
+    finally { busy = false; refineBtn.disabled = false; captureBtn.disabled = false; refineBtn.innerHTML = prevLabel; }
+  }
+  refineBtn.addEventListener('click', refine);
+
+  thoughtEl.addEventListener('keydown', e => {
+    if ((e.metaKey||e.ctrlKey) && e.key==='Enter') {
+      e.preventDefault();
+      if (e.shiftKey) refine(); else capture();
+    }
+  });
 
   function relTime(iso) {
     const diff = Date.now() - new Date(iso).getTime();

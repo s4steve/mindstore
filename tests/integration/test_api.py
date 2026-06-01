@@ -7,6 +7,7 @@ Requires the full Docker stack to be running:
 import os
 
 import httpx
+import pytest
 
 BASE_URL = os.environ.get("INGESTION_URL", "http://localhost:8000")
 API_KEY = os.environ.get("API_KEY", "")
@@ -71,6 +72,37 @@ def test_ingest_note_with_tags():
     data = r.json()
     assert data["chunks_created"] == 2
     assert data["content_type"] == "note"
+
+
+def test_refine_requires_auth():
+    r = httpx.post(f"{BASE_URL}/refine", json={"content": "hello"})
+    assert r.status_code == 403
+
+
+def test_refine_content_too_long():
+    r = httpx.post(
+        f"{BASE_URL}/refine",
+        json={"content": "x" * 50_001, "content_type": "thought"},
+        headers=HEADERS,
+    )
+    assert r.status_code == 422
+
+
+def test_refine_smoke():
+    """Live refine. Skips if the refiner backend is disabled (no API key)."""
+    r = httpx.post(
+        f"{BASE_URL}/refine",
+        json={"content": "went to teh store, forgot the milk again ugh", "content_type": "thought"},
+        headers=HEADERS,
+        timeout=60.0,
+    )
+    if r.status_code == 503:
+        pytest.skip("refiner backend disabled (ANTHROPIC_API_KEY unset)")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data["content"], str) and data["content"].strip()
+    assert isinstance(data["tags"], list)
+    assert data["content_type"] == "thought"
 
 
 def test_stats():

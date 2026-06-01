@@ -8,11 +8,13 @@ from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Security
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from embedder import EmbedderBase, SentenceTransformerEmbedder
+from refiner import AnthropicRefiner, RefinerBase
 
 from . import db as db_module
 from . import pipeline
@@ -32,6 +34,8 @@ from .models import (
     HomeItemUpdate,
     IngestRequest,
     IngestResponse,
+    RefineRequest,
+    RefineResponse,
     StatsResponse,
     TaskCreate,
     TaskResponse,
@@ -47,11 +51,15 @@ API_KEY = os.environ["API_KEY"]
 EMBEDDER_MODEL = os.environ.get("EMBEDDER_MODEL", "all-MiniLM-L6-v2")
 WEB_USERNAME = os.environ.get("WEB_USERNAME", "")
 WEB_PASSWORD = os.environ.get("WEB_PASSWORD", "")
+REFINER_BACKEND = os.environ.get("REFINER_BACKEND", "anthropic")
+REFINER_MODEL = os.environ.get("REFINER_MODEL", "claude-sonnet-4-6")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
 
 _db_pool: asyncpg.Pool | None = None
 _embedder: EmbedderBase | None = None
+_refiner: RefinerBase | None = None
 
 
 async def get_api_key(key: str = Security(api_key_header)) -> str:
@@ -60,11 +68,30 @@ async def get_api_key(key: str = Security(api_key_header)) -> str:
     return key
 
 
+def _build_refiner() -> RefinerBase | None:
+    """Construct the configured refiner backend, or None if unavailable.
+
+    Returning None (rather than raising) lets the service start and serve
+    capture/search even when no AI cleanup backend is configured.
+    """
+    if REFINER_BACKEND == "anthropic":
+        if not ANTHROPIC_API_KEY:
+            logger.warning("ANTHROPIC_API_KEY unset; refiner unavailable.")
+            return None
+        return AnthropicRefiner(api_key=ANTHROPIC_API_KEY, model=REFINER_MODEL)
+    logger.warning("Unknown REFINER_BACKEND %r; refiner unavailable.", REFINER_BACKEND)
+    return None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _db_pool, _embedder
+    global _db_pool, _embedder, _refiner
     logger.info("Loading embedder model...")
     _embedder = SentenceTransformerEmbedder(EMBEDDER_MODEL)
+    logger.info("Initializing refiner backend (%s)...", REFINER_BACKEND)
+    _refiner = _build_refiner()
+    if _refiner is None:
+        logger.warning("Refiner disabled — /refine will return 503.")
     logger.info("Connecting to database...")
     _db_pool = await db_module.create_pool(DATABASE_URL)
     logger.info("Ingestion service ready.")
@@ -133,10 +160,35 @@ def get_embedder() -> EmbedderBase:
     return _embedder
 
 
+def get_refiner() -> RefinerBase | None:
+    return _refiner
+
+
 @app.post("/ingest", response_model=IngestResponse, dependencies=[Depends(get_api_key)])
 @limiter.limit("30/minute")
 async def ingest_endpoint(request: Request, ingest_req: IngestRequest):
     return await pipeline.ingest(ingest_req, get_pool(), get_embedder())
+
+
+@app.post("/refine", response_model=RefineResponse, dependencies=[Depends(get_api_key)])
+@limiter.limit("20/minute")
+async def refine_endpoint(request: Request, refine_req: RefineRequest):
+    refiner = get_refiner()
+    if refiner is None:
+        raise HTTPException(status_code=503, detail="AI cleanup is not configured")
+    try:
+        result = await run_in_threadpool(
+            refiner.refine, refine_req.content, refine_req.content_type
+        )
+    except Exception as exc:
+        logger.warning("Refine failed: %s", exc)
+        raise HTTPException(status_code=502, detail="AI cleanup failed") from exc
+    return RefineResponse(
+        content=result.content,
+        title=result.title,
+        tags=result.tags,
+        content_type=refine_req.content_type,
+    )
 
 
 @app.get("/health", response_model=HealthResponse)

@@ -21,6 +21,18 @@ class IngestResponse(BaseModel):
     content_type: str
 
 
+class RefineRequest(BaseModel):
+    content: str = Field(..., min_length=1, max_length=50_000)
+    content_type: ContentType = "thought"
+
+
+class RefineResponse(BaseModel):
+    content: str
+    title: str | None = None
+    tags: list[str] = []
+    content_type: ContentType
+
+
 class UpdateRequest(BaseModel):
     content: str | None = Field(None, min_length=1, max_length=50_000)
     title: str | None = None
